@@ -2,6 +2,7 @@ use look_engine::QueryEngine;
 use look_indexing::CandidateKind;
 use look_storage::SqliteStore;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::env;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -68,11 +69,10 @@ pub extern "C" fn look_search_json(query: *const c_char, limit: u32) -> *mut c_c
 
     let json = serde_json::to_string(&payload)
         .unwrap_or_else(|_| "{\"query\":\"\",\"count\":0,\"results\":[]}".to_string());
-    CString::new(json)
-        .unwrap_or_else(|_| {
-            CString::new("{\"query\":\"\",\"count\":0,\"results\":[]}").expect("valid static json")
-        })
-        .into_raw()
+    let cstring = CString::new(json).unwrap_or_else(|_| {
+        CString::new("{\"query\":\"\",\"count\":0,\"results\":[]}").expect("valid static json")
+    });
+    store_json_allocation(cstring)
 }
 
 #[unsafe(no_mangle)]
@@ -114,9 +114,20 @@ pub extern "C" fn look_free_cstring(ptr: *mut c_char) {
     if ptr.is_null() {
         return;
     }
-    unsafe {
-        let _ = CString::from_raw(ptr);
+
+    if let Some(lock) = JSON_ALLOCS.get()
+        && let Ok(mut allocations) = lock.lock()
+    {
+        allocations.remove(&(ptr as usize));
     }
+}
+
+fn store_json_allocation(cstring: CString) -> *mut c_char {
+    let ptr = cstring.as_ptr() as usize;
+    let lock = JSON_ALLOCS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut allocations = lock.lock().expect("json allocations lock poisoned");
+    allocations.insert(ptr, cstring);
+    ptr as *mut c_char
 }
 
 fn cstr_to_string(ptr: *const c_char) -> String {
@@ -130,10 +141,10 @@ fn cstr_to_string(ptr: *const c_char) -> String {
 }
 
 fn default_db_path() -> PathBuf {
-    if let Ok(custom) = env::var("LOOK_DB_PATH") {
-        if !custom.trim().is_empty() {
-            return PathBuf::from(custom);
-        }
+    if let Ok(custom) = env::var("LOOK_DB_PATH")
+        && !custom.trim().is_empty()
+    {
+        return PathBuf::from(custom);
     }
 
     let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
@@ -145,6 +156,7 @@ fn default_db_path() -> PathBuf {
 }
 
 static ENGINE_CACHE: OnceLock<Mutex<QueryEngine>> = OnceLock::new();
+static JSON_ALLOCS: OnceLock<Mutex<HashMap<usize, CString>>> = OnceLock::new();
 
 fn engine_cache() -> &'static Mutex<QueryEngine> {
     ENGINE_CACHE.get_or_init(|| {
@@ -164,10 +176,10 @@ fn with_engine<T>(f: impl FnOnce(&QueryEngine) -> T) -> T {
 fn refresh_engine_cache() {
     if let Some(lock) = ENGINE_CACHE.get() {
         let path = default_db_path();
-        if let Ok(engine) = QueryEngine::from_sqlite(path) {
-            if let Ok(mut guard) = lock.lock() {
-                *guard = engine;
-            }
+        if let Ok(engine) = QueryEngine::from_sqlite(path)
+            && let Ok(mut guard) = lock.lock()
+        {
+            *guard = engine;
         }
     }
 }
