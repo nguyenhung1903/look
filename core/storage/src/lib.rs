@@ -1,5 +1,5 @@
 use look_indexing::{Candidate, CandidateKind};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::path::Path;

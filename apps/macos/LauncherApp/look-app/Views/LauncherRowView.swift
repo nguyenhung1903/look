@@ -2,8 +2,11 @@ import AppKit
 import SwiftUI
 
 struct LauncherRowView: View {
+    @EnvironmentObject private var themeStore: ThemeStore
+
     let result: LauncherResult
     let isSelected: Bool
+    let onOpen: () -> Void
 
     private var rowIcon: NSImage {
         if result.id.hasPrefix("setting:") {
@@ -24,7 +27,8 @@ struct LauncherRowView: View {
                     .resizable()
                     .frame(width: 22, height: 22)
                 Text(result.title)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .medium))
+                    .foregroundStyle(themeStore.fontColor())
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)
@@ -38,6 +42,10 @@ struct LauncherRowView: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(.white.opacity(0.18), lineWidth: 1)
                 }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onOpen()
             }
 
             Rectangle()

@@ -17,18 +17,29 @@ repos:
       - id: mixed-line-ending
         args: [--fix=lf]
 
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
-    hooks:
-      - id: fmt
-        args: [--manifest-path=core/Cargo.toml, --all]
-      - id: cargo-check
-        args: [--workspace, --manifest-path=core/Cargo.toml]
-      - id: clippy
-        args: [--workspace, --manifest-path=core/Cargo.toml, --, -D, warnings]
-
   - repo: local
     hooks:
+      - id: cargo-fmt-core
+        name: cargo fmt (core workspace)
+        entry: cargo fmt --manifest-path core/Cargo.toml --all -- --check
+        language: system
+        pass_filenames: false
+        types: [rust]
+
+      - id: cargo-check-core
+        name: cargo check (core workspace)
+        entry: cargo check --workspace --manifest-path core/Cargo.toml
+        language: system
+        pass_filenames: false
+        types: [rust]
+
+      - id: cargo-clippy-core
+        name: cargo clippy (core workspace)
+        entry: cargo clippy --workspace --manifest-path core/Cargo.toml -- -D warnings
+        language: system
+        pass_filenames: false
+        types: [rust]
+
       - id: cargo-test-core
         name: cargo test (core workspace)
         entry: cargo test --workspace --manifest-path core/Cargo.toml

@@ -15,6 +15,10 @@ struct LauncherView: View {
     @State private var commandFeedback = ""
     @State private var keyboardMonitor = KeyboardSelectionMonitor()
     @State private var searchTask: Task<Void, Never>?
+    @State private var bannerMessage: String?
+    @State private var bannerTask: Task<Void, Never>?
+    @State private var selectedKillSuggestionIndex: Int?
+    @State private var pendingKillApp: (NSRunningApplication, Int)?
     @FocusState private var isQueryFocused: Bool
 
     private let bridge = EngineBridge.shared
@@ -22,7 +26,19 @@ struct LauncherView: View {
     private let commandCatalog: [AppCommand] = AppConstants.Launcher.commandCatalog
 
     private var filteredResults: [LauncherResult] {
-        backendResults
+        var seenTitles = Set<String>()
+        var unique: [LauncherResult] = []
+        for item in backendResults {
+            let key = item.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if key.isEmpty {
+                unique.append(item)
+                continue
+            }
+            if seenTitles.insert(key).inserted {
+                unique.append(item)
+            }
+        }
+        return unique
     }
 
     private var commandNamePart: String {
@@ -57,9 +73,9 @@ struct LauncherView: View {
         if activeCommandID == "calc" {
             let expr = commandInput.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !expr.isEmpty else { return nil }
-            guard isExpressionReadyForEvaluation(expr) else { return nil }
+            guard CalcCommand.isReadyForEvaluation(expr) else { return nil }
 
-            switch evaluateMathExpression(expr) {
+            switch CalcCommand.evaluate(expr) {
             case .value(let value):
                 return "Result: \(value)"
             case .error(let message):
@@ -72,14 +88,7 @@ struct LauncherView: View {
 
     private var hasSudoWarning: Bool {
         guard isCommandMode, activeCommandID == "shell" else { return false }
-        let trimmed = commandInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        let pattern = "(^|\\s)sudo(\\s|$)"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
-            return false
-        }
-        let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
-        return regex.firstMatch(in: trimmed, range: range) != nil
+        return ShellCommand.hasSudoWarning(commandInput)
     }
 
     private var filteredCommands: [AppCommand] {
@@ -88,6 +97,12 @@ struct LauncherView: View {
             return commandCatalog
         }
         return commandCatalog.filter { $0.id.hasPrefix(prefix) }
+    }
+
+    private var killSuggestions: [(NSRunningApplication, Int)] {
+        let apps = KillCommand.getRunningApps()
+        let searchTerm = commandArgsPart.trimmingCharacters(in: .whitespacesAndNewlines)
+        return KillCommand.filterApps(searchTerm: searchTerm, from: apps)
     }
 
     private func setInitialSelection() {
@@ -104,6 +119,35 @@ struct LauncherView: View {
 
     private func moveSelection(_ direction: MoveCommandDirection, shouldAutocompleteCommand: Bool = false) {
         guard !appUIState.showsThemeSettings else { return }
+
+        if isCommandMode && activeCommandID == "kill" {
+            let suggestions = killSuggestions.prefix(20)
+            guard !suggestions.isEmpty else { return }
+
+            let currentNum = selectedKillSuggestionIndex
+            let currentIndex = suggestions.firstIndex { $0.1 == currentNum }
+
+            let nextIndex: Int
+            switch direction {
+            case .down:
+                if let currentIndex {
+                    nextIndex = min(currentIndex + 1, suggestions.count - 1)
+                } else {
+                    nextIndex = 0
+                }
+            case .up:
+                if let currentIndex {
+                    nextIndex = max(currentIndex - 1, 0)
+                } else {
+                    nextIndex = suggestions.count - 1
+                }
+            default:
+                return
+            }
+
+            selectedKillSuggestionIndex = suggestions[nextIndex].1
+            return
+        }
 
         if isCommandMode {
             guard !filteredCommands.isEmpty else {
@@ -199,14 +243,45 @@ struct LauncherView: View {
 
     private func handleSubmit() {
         if isCommandMode {
-            runCommandModeAction()
+            if activeCommandID == "kill", let selectedNum = selectedKillSuggestionIndex {
+                if let (app, _) = killSuggestions.first(where: { $0.1 == selectedNum }) {
+                    pendingKillApp = (app, selectedNum)
+                }
+            } else {
+                runCommandModeAction()
+            }
         } else {
-            openSelectedApp()
+            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let translationTarget = extractTranslationQuery(from: trimmed) {
+                let result = bridge.translate(text: translationTarget)
+                if let translated = result?.translated, !translated.isEmpty {
+                    showBanner("\(translationTarget) -> \(translated)")
+                } else {
+                    showBanner("Translation failed")
+                }
+                isQueryFocused = true
+            } else {
+                openSelectedApp()
+            }
         }
 
         DispatchQueue.main.async {
             isQueryFocused = true
         }
+    }
+
+    private func extractTranslationQuery(from input: String) -> String? {
+        if input.hasPrefix("t\"") {
+            let text = String(input.dropFirst(2)).trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : text
+        }
+
+        if input.lowercased().hasPrefix("tr ") {
+            let text = String(input.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : text
+        }
+
+        return nil
     }
 
     private func runCommandModeAction() {
@@ -215,7 +290,7 @@ struct LauncherView: View {
             ?? commandCatalog.first(where: { $0.id == selectedCommandID })
 
         guard let resolvedCommand else {
-            commandFeedback = "Unknown command. Try /shell or /calc"
+            commandFeedback = "Unknown command. Try /shell, /calc, or /kill"
             return
         }
 
@@ -225,192 +300,63 @@ struct LauncherView: View {
                 commandFeedback = "Usage: /shell <command>"
                 return
             }
-            let shellCommand = commandArgsPart
             commandFeedback = "Running..."
-            Task.detached(priority: .userInitiated) {
-                let process = Process()
-                let outputPipe = Pipe()
-                process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-                process.arguments = ["-lc", shellCommand]
-                process.standardOutput = outputPipe
-                process.standardError = outputPipe
-
-                let message: String
-                do {
-                    try process.run()
-                    process.waitUntilExit()
-                    let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                    let raw = String(data: data, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                    if raw.isEmpty {
-                        message = process.terminationStatus == 0 ? "Done" : "Error: command failed"
-                    } else {
-                        let prefix = process.terminationStatus == 0 ? "" : "Error: "
-                        message = String((prefix + raw).prefix(180))
-                    }
-                } catch {
-                    message = "Error: failed to execute command"
-                }
-
-                await MainActor.run {
-                    commandFeedback = message
-                    isQueryFocused = true
-                }
+            ShellCommand.run(commandArgsPart) { [self] message in
+                commandFeedback = message
+                isQueryFocused = true
             }
         case "calc":
             guard !commandArgsPart.isEmpty else {
                 commandFeedback = "Usage: /calc <expression>"
                 return
             }
-            let calcResult = evaluateMathExpression(commandArgsPart)
-            switch calcResult {
-            case .value(let result):
-                commandFeedback = "Result: \(result)"
+            let result = CalcCommand.evaluate(commandArgsPart)
+            switch result {
+            case .value(let value):
+                commandFeedback = "Result: \(value)"
                 NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(result, forType: .string)
+                NSPasteboard.general.setString(value, forType: .string)
             case .error(let message):
                 commandFeedback = message
+            }
+        case "kill":
+            let apps = KillCommand.getRunningApps()
+            let searchTerm = commandArgsPart.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let matched = KillCommand.filterApps(searchTerm: searchTerm, from: apps)
+
+            if apps.isEmpty {
+                commandFeedback = "No apps running"
+            } else if searchTerm.isEmpty {
+                let appList = apps.enumerated().map { idx, app in
+                    "\(idx + 1). \(app.localizedName ?? "Unknown") (PID: \(app.processIdentifier))"
+                }
+                commandFeedback = "Running apps:\n" + appList.joined(separator: "\n") + "\n\n/kill <name or number>"
+            } else if matched.isEmpty {
+                commandFeedback = "No matching apps. /kill to list all."
+            } else if matched.count > 1 {
+                let list = matched.map { app, num in "\(num). \(app.localizedName ?? "Unknown")" }
+                commandFeedback = "Multiple matches:\n" + list.joined(separator: "\n") + "\n\nBe more specific."
+            } else {
+                let (app, _) = matched[0]
+                KillCommand.kill(pid: app.processIdentifier, name: app.localizedName ?? "Unknown") { [self] message in
+                    commandFeedback = message
+                }
             }
         default:
             commandFeedback = "Unsupported command"
         }
     }
 
-    private enum CalcResult {
-        case value(String)
-        case error(String)
-    }
-
-    private func evaluateMathExpression(_ expression: String) -> CalcResult {
-        guard isExpressionReadyForEvaluation(expression) else {
-            return .error("Invalid expression")
+    private func runKillCommand(num: Int) {
+        let apps = KillCommand.getRunningApps()
+        guard num > 0 && num <= apps.count else {
+            commandFeedback = "Invalid app number"
+            return
         }
-
-        let normalized = decimalizeIntegerTokens(in: normalizeMathExpression(expression))
-
-        if containsDivisionByZero(in: normalized) {
-            return .error("Error: division by zero")
+        let app = apps[num - 1]
+        KillCommand.kill(pid: app.processIdentifier, name: app.localizedName ?? "Unknown") { [self] message in
+            commandFeedback = message
         }
-
-        let parsed = NSExpression(format: normalized)
-        guard let value = parsed.expressionValue(with: nil, context: nil) else {
-            return .error("Invalid expression")
-        }
-        if let number = value as? NSNumber {
-            let evaluated = number.doubleValue
-            if abs(evaluated) > AppConstants.Launcher.calcMaxMagnitude {
-                return .error("Error: result out of range (±1,000,000,000,000)")
-            }
-            return .value(formatFloat(evaluated))
-        }
-        return .error("Invalid expression")
-    }
-
-    private func isExpressionReadyForEvaluation(_ expression: String) -> Bool {
-        let trimmed = expression.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            return false
-        }
-
-        var balance = 0
-        for ch in trimmed {
-            if ch == "(" { balance += 1 }
-            if ch == ")" {
-                balance -= 1
-                if balance < 0 { return false }
-            }
-        }
-        if balance != 0 {
-            return false
-        }
-
-        if let last = trimmed.last,
-            "+-*/.(".contains(last)
-        {
-            return false
-        }
-
-        let allowedPattern = "^[0-9A-Za-z_+\\-*/().:xXvV\\s]+$"
-        guard let regex = try? NSRegularExpression(pattern: allowedPattern) else { return false }
-        let full = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
-        guard let match = regex.firstMatch(in: trimmed, range: full), match.range == full else {
-            return false
-        }
-
-        return true
-    }
-
-    private func formatFloat(_ value: Double) -> String {
-        if value.isNaN || value.isInfinite {
-            return "nan"
-        }
-
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = ","
-        formatter.usesGroupingSeparator = true
-        formatter.minimumFractionDigits = 4
-        formatter.maximumFractionDigits = 4
-        formatter.minimumIntegerDigits = 1
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.4f", value)
-    }
-
-    private func decimalizeIntegerTokens(in expression: String) -> String {
-        let pattern = "(?<![A-Za-z0-9_\\.])(\\d+)(?![A-Za-z0-9_\\.])"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return expression }
-
-        let range = NSRange(expression.startIndex..<expression.endIndex, in: expression)
-        let matches = regex.matches(in: expression, range: range)
-        var output = expression
-        for match in matches.reversed() {
-            guard let tokenRange = Range(match.range(at: 1), in: output) else { continue }
-            output.replaceSubrange(tokenRange, with: output[tokenRange] + ".0")
-        }
-        return output
-    }
-
-    private func containsDivisionByZero(in expression: String) -> Bool {
-        let pattern = "/\\s*0+(?:\\.0+)?(?:\\b|(?=\\)))"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
-        let range = NSRange(expression.startIndex..<expression.endIndex, in: expression)
-        return regex.firstMatch(in: expression, range: range) != nil
-    }
-
-    private func normalizeMathExpression(_ expression: String) -> String {
-        var normalized = expression
-            .replacingOccurrences(of: "x", with: "*")
-            .replacingOccurrences(of: "X", with: "*")
-            .replacingOccurrences(of: ":", with: "/")
-
-        normalized = replacePrefixSqrt(in: normalized)
-        return normalized
-    }
-
-    private func replacePrefixSqrt(in expression: String) -> String {
-        var output = ""
-        var index = expression.startIndex
-
-        while index < expression.endIndex {
-            let char = expression[index]
-            if char == "v" || char == "V" {
-                let prev = index > expression.startIndex ? expression[expression.index(before: index)] : " "
-                let nextIndex = expression.index(after: index)
-                let next = nextIndex < expression.endIndex ? expression[nextIndex] : " "
-                let prevIsWord = prev.isLetter || prev.isNumber || prev == "_"
-                let nextIsStart = next.isNumber || next == "." || next == "(" || next == " "
-                if !prevIsWord && nextIsStart {
-                    output.append("sqrt")
-                    index = nextIndex
-                    continue
-                }
-            }
-
-            output.append(char)
-            index = expression.index(after: index)
-        }
-
-        return output
     }
 
     private func openSelectedApp() {
@@ -469,10 +415,60 @@ struct LauncherView: View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        if let translationTarget = extractTranslationQuery(from: trimmed) {
+            let result = bridge.translate(text: translationTarget)
+            if let translated = result?.translated, !translated.isEmpty {
+                showBanner("\(translationTarget) -> \(translated)")
+            } else {
+                showBanner("Translation failed")
+            }
+            isQueryFocused = true
+            return
+        }
+
         var components = URLComponents(string: "https://www.google.com/search")
         components?.queryItems = [URLQueryItem(name: "q", value: trimmed)]
         guard let url = components?.url else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private func reloadConfig() {
+        themeStore.reloadFromConfig()
+        let backendReloaded = bridge.reloadConfig()
+        showBanner(backendReloaded ? "Config reloaded" : "Config reload failed")
+        if isCommandMode {
+            commandFeedback = backendReloaded ? "Config reloaded" : "Config reload failed"
+        }
+        refreshSearchResults()
+        focusActiveInput()
+    }
+
+    private func focusActiveInput() {
+        if appUIState.showsThemeSettings {
+            NotificationCenter.default.post(name: .lookFocusSettingsInputRequested, object: nil)
+            return
+        }
+
+        DispatchQueue.main.async {
+            isQueryFocused = true
+        }
+    }
+
+    private func showBanner(_ message: String) {
+        bannerTask?.cancel()
+        withAnimation(.easeOut(duration: 0.15)) {
+            bannerMessage = message
+        }
+
+        bannerTask = Task {
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeIn(duration: 0.15)) {
+                    bannerMessage = nil
+                }
+            }
+        }
     }
 
     private func selectCommand(_ commandID: String) {
@@ -489,137 +485,89 @@ struct LauncherView: View {
                 if appUIState.showsThemeSettings {
                     ThemeSettingsView(settings: $themeStore.settings)
                 } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: isCommandMode ? "terminal" : "magnifyingglass")
-                            .foregroundStyle(isCommandMode ? .green : .secondary)
-                        TextField(
-                            isCommandMode
-                                    ? (activeCommand?.placeholder ?? "Choose a command with Tab")
-                                    : "Search apps",
-                            text: isCommandMode ? $commandInput : $query
-                        )
-                            .textFieldStyle(.plain)
-                            .focused($isQueryFocused)
-                            .onSubmit(handleSubmit)
-
-                        if isCommandMode {
-                            if let activeCommand {
-                                Text("/\(activeCommand.title)")
-                                    .font(.caption.monospaced())
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(.green.opacity(0.18), in: Capsule())
-                            }
-                            Button("Exit") {
-                                exitCommandMode()
-                            }
-                            .keyboardShortcut(.escape, modifiers: [.shift])
-                            .font(.caption)
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(
-                        .white.opacity(0.14),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    SearchInputBar(
+                        text: isCommandMode ? $commandInput : $query,
+                        isCommandMode: $isCommandMode,
+                        isQueryFocused: $isQueryFocused,
+                        activeCommand: activeCommand,
+                        themeStore: themeStore,
+                        onSubmit: handleSubmit,
+                        onExitCommandMode: exitCommandMode
                     )
 
+                    if let bannerMessage {
+                        Text(bannerMessage)
+                            .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
+                            .foregroundStyle(themeStore.fontColor())
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.green.opacity(0.42), in: Capsule())
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
                     if isCommandMode {
-                        Text(
-                            liveCommandPreview
-                                ?? (commandFeedback.isEmpty
-                                    ? AppConstants.Launcher.commandEmptyMessage
-                                    : commandFeedback)
+                        CommandFeedbackView(
+                            message: liveCommandPreview ?? (commandFeedback.isEmpty ? AppConstants.Launcher.commandEmptyMessage : commandFeedback),
+                            themeStore: themeStore
                         )
-                            .font(.system(size: AppConstants.Launcher.commandResultFontSize, weight: .semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
                     }
 
                     if isCommandMode {
                         Spacer(minLength: 8)
 
-                        ScrollView {
-                            LazyVStack(spacing: 4) {
-                                ForEach(filteredCommands) { command in
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "terminal")
-                                            .frame(width: 22, height: 22)
-                                            .foregroundStyle(.green)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("/\(command.title)")
-                                                .font(.system(size: 14, weight: .semibold))
-                                            Text(command.detail)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer(minLength: 0)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        (selectedCommandID == command.id || activeCommandID == command.id)
-                                            ? .green.opacity(0.20) : .white.opacity(0.08),
-                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    )
-                                    .onTapGesture {
-                                        selectCommand(command.id)
-                                    }
+                        if activeCommandID == "kill" {
+                            KillCommandView(
+                                suggestions: Array(killSuggestions),
+                                selectedIndex: selectedKillSuggestionIndex,
+                                pendingApp: pendingKillApp,
+                                themeStore: themeStore,
+                                onSelect: { app, num in
+                                    pendingKillApp = (app, num)
+                                    selectedKillSuggestionIndex = num
+                                },
+                                onConfirm: { pid in
+                                    runKillCommand(num: pid)
+                                    pendingKillApp = nil
+                                },
+                                onCancel: { pendingKillApp = nil }
+                            )
+                            .onAppear {
+                                if selectedKillSuggestionIndex == nil {
+                                    selectedKillSuggestionIndex = killSuggestions.first?.1
                                 }
                             }
-                            .padding(2)
+                        } else {
+                            CommandListView(
+                                commands: filteredCommands,
+                                selectedID: selectedCommandID,
+                                activeID: activeCommandID,
+                                themeStore: themeStore,
+                                onSelect: selectCommand
+                            )
                         }
-                        .frame(maxHeight: AppConstants.Launcher.commandListMaxHeight)
                     } else {
-                        ScrollViewReader { proxy in
-                            ScrollView {
-                                LazyVStack(spacing: 4) {
-                                    ForEach(filteredResults) { result in
-                                        LauncherRowView(
-                                            result: result,
-                                            isSelected: selectedResultID == result.id
-                                        )
-                                        .id(result.id)
-                                    }
-                                }
-                                .padding(2)
-                            }
-                            .onChange(of: selectedResultID) { _, newID in
-                                guard let newID else { return }
-                                withAnimation(.easeOut(duration: 0.12)) {
-                                    proxy.scrollTo(newID, anchor: .center)
-                                }
-                            }
-                        }
+                        ResultsListView(
+                            results: filteredResults,
+                            selectedID: selectedResultID,
+                            themeStore: themeStore,
+                            onSelect: { selectedResultID = $0 },
+                            onOpen: { _ in openSelectedApp() }
+                        )
                     }
 
-                    Text(
-                        isCommandMode
-                            ? AppConstants.Launcher.commandHint
-                            : AppConstants.Launcher.normalHint
-                    )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HintBar(isCommandMode: isCommandMode, themeStore: themeStore)
                 }
             }
             .padding(14)
-            .background(
-                .black.opacity(0.16),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
+            .font(themeStore.uiFont())
+            .foregroundStyle(themeStore.fontColor())
+            .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .background(Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(
-                    hasSudoWarning ? .orange.opacity(0.95)
-                        : (isCommandMode && !appUIState.showsThemeSettings
-                            ? .green.opacity(0.75) : .white.opacity(0.12)),
-                    lineWidth: 1
-                )
+                .stroke(hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(), lineWidth: themeStore.borderLineWidth())
         )
         .ignoresSafeArea()
         .onAppear {
@@ -631,6 +579,7 @@ struct LauncherView: View {
         }
         .onDisappear {
             searchTask?.cancel()
+            bannerTask?.cancel()
             keyboardMonitor.stop()
         }
         .onChange(of: query) { _, _ in
@@ -652,6 +601,7 @@ struct LauncherView: View {
         .onChange(of: appUIState.showsThemeSettings) { _, showsSettings in
             if showsSettings {
                 keyboardMonitor.stop()
+                NotificationCenter.default.post(name: .lookFocusSettingsInputRequested, object: nil)
             } else {
                 startKeyboardNavigationIfNeeded()
                 DispatchQueue.main.async {
@@ -668,6 +618,12 @@ struct LauncherView: View {
             DispatchQueue.main.async {
                 isQueryFocused = true
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lookReloadConfigRequested)) { _ in
+            reloadConfig()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lookRefocusInputRequested)) { _ in
+            focusActiveInput()
         }
     }
 
@@ -750,6 +706,18 @@ struct LauncherView: View {
             },
             onWebSearch: {
                 performWebSearchFromQuery()
+            },
+            onConfirmKill: { [self] in
+                if let (_, num) = pendingKillApp {
+                    runKillCommand(num: num)
+                    pendingKillApp = nil
+                }
+            },
+            onCancelKill: { [self] in
+                pendingKillApp = nil
+            },
+            killConfirmationActive: { [self] in
+                pendingKillApp != nil
             }
         )
     }

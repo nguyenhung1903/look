@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		CE158B1D2F80D9AE001BAA87 /* look-app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "look-app.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE158B1D2F80D9AE001BAA87 /* Look.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Look.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		CE158B1C2F80D9AE001BAA87 /* look-app */ = {
+		CE158B1C2F80D9AE001BAA87 /* Look */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CE158B282F80D9B0001BAA87 /* Build configuration list for PBXNativeTarget "look-app" */;
+			buildConfigurationList = CE158B282F80D9B0001BAA87 /* Build configuration list for PBXNativeTarget "Look" */;
 			buildPhases = (
 				A1B2C3D42F80D9AE001BAA87 /* Build Rust FFI */,
 				CE158B192F80D9AE001BAA87 /* Sources */,
@@ -64,11 +64,11 @@
 			fileSystemSynchronizedGroups = (
 				CE158B1F2F80D9AE001BAA87 /* look-app */,
 			);
-			name = "look-app";
+			name = "Look";
 			packageProductDependencies = (
 			);
-			productName = "look-app";
-			productReference = CE158B1D2F80D9AE001BAA87 /* look-app.app */;
+			productName = "Look";
+			productReference = CE158B1D2F80D9AE001BAA87 /* Look.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -133,7 +133,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nif [ \"$CONFIGURATION\" = \"Release\" ]; then\n  PROFILE=release\n  CARGO_FLAGS=--release\nelse\n  PROFILE=debug\n  CARGO_FLAGS=\"\"\nfi\n\ncargo build --manifest-path \"$PROJECT_DIR/../../../bridge/ffi/Cargo.toml\" $CARGO_FLAGS\nmkdir -p \"$PROJECT_DIR/RustBuild\"\ncp \"$PROJECT_DIR/../../../bridge/ffi/target/$PROFILE/liblook_ffi.a\" \"$PROJECT_DIR/RustBuild/liblook_ffi.a\"\n";
+			shellScript = "set -euo pipefail\nif [ \"$CONFIGURATION\" = \"Release\" ]; then\n  PROFILE=release\n  CARGO_FLAGS=--release\nelse\n  PROFILE=debug\n  CARGO_FLAGS=\"\"\nfi\n\nif [ -x \"$HOME/.cargo/bin/cargo\" ]; then\n  CARGO_BIN=\"$HOME/.cargo/bin/cargo\"\nelse\n  CARGO_BIN=cargo\nfi\n\nmkdir -p \"$PROJECT_DIR/RustBuild\"\nif \"$CARGO_BIN\" +nightly build --manifest-path \"$PROJECT_DIR/../../../bridge/ffi/Cargo.toml\" $CARGO_FLAGS; then\n  cp \"$PROJECT_DIR/../../../bridge/ffi/target/$PROFILE/liblook_ffi.a\" \"$PROJECT_DIR/RustBuild/liblook_ffi.a\"\nelse\n  echo \"warning: Rust build skipped; using existing RustBuild/liblook_ffi.a\"\n  if [ ! -f \"$PROJECT_DIR/RustBuild/liblook_ffi.a\" ]; then\n    echo \"error: missing fallback RustBuild/liblook_ffi.a\"\n    exit 1\n  fi\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -271,6 +271,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -278,6 +279,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Look;
+				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -288,8 +291,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "noah-code.look-app";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "noah-code.Look";
+				PRODUCT_NAME = "Look";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -305,6 +308,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -312,6 +316,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Look;
+				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -322,8 +328,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "noah-code.look-app";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "noah-code.Look";
+				PRODUCT_NAME = "Look";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -346,7 +352,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CE158B282F80D9B0001BAA87 /* Build configuration list for PBXNativeTarget "look-app" */ = {
+		CE158B282F80D9B0001BAA87 /* Build configuration list for PBXNativeTarget "Look" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CE158B292F80D9B0001BAA87 /* Debug */,

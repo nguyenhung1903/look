@@ -60,7 +60,7 @@ On action execution:
 
 - `bridge/ffi/src/lib.rs`
   - C ABI surface used by Swift
-  - current APIs include search JSON and usage recording
+  - current APIs include search JSON, usage recording, and runtime config reload
 
 ## Where to change behavior
 
@@ -85,6 +85,15 @@ Then update source-specific logic in:
 - `core/engine/src/index/apps.rs`
 - `core/engine/src/index/settings.rs` (curated settings list)
 - `core/engine/src/index/files.rs`
+
+Runtime overrides are also supported through `~/.look.config` (or `LOOK_CONFIG_PATH`).
+
+- format: one `key=value` per line (`#` starts a comment)
+- supported keys: `app_scan_roots`, `app_scan_depth`, `file_scan_roots`, `file_scan_depth`, `file_scan_limit`, `skip_dir_names`
+- unknown keys are ignored; invalid values fall back to defaults
+- file is auto-created with defaults on first launch if missing
+- app can reload config at runtime via `Cmd+Shift+;`
+- the same config file is also read by Swift UI for theme/font overrides
 
 ## Tune persistence behavior
 
