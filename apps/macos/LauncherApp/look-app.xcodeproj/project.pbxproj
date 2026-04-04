@@ -133,7 +133,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nif [ \"$CONFIGURATION\" = \"Release\" ]; then\n  PROFILE=release\n  CARGO_FLAGS=--release\nelse\n  PROFILE=debug\n  CARGO_FLAGS=\"\"\nfi\n\ncargo build --manifest-path \"$PROJECT_DIR/../../../bridge/ffi/Cargo.toml\" $CARGO_FLAGS\nmkdir -p \"$PROJECT_DIR/RustBuild\"\ncp \"$PROJECT_DIR/../../../bridge/ffi/target/$PROFILE/liblook_ffi.a\" \"$PROJECT_DIR/RustBuild/liblook_ffi.a\"\n";
+			shellScript = "set -euo pipefail\nif [ \"$CONFIGURATION\" = \"Release\" ]; then\n  PROFILE=release\n  CARGO_FLAGS=--release\nelse\n  PROFILE=debug\n  CARGO_FLAGS=\"\"\nfi\n\nif [ -x \"$HOME/.cargo/bin/cargo\" ]; then\n  CARGO_BIN=\"$HOME/.cargo/bin/cargo\"\nelse\n  CARGO_BIN=cargo\nfi\n\nmkdir -p \"$PROJECT_DIR/RustBuild\"\nif \"$CARGO_BIN\" +nightly build --manifest-path \"$PROJECT_DIR/../../../bridge/ffi/Cargo.toml\" $CARGO_FLAGS; then\n  cp \"$PROJECT_DIR/../../../bridge/ffi/target/$PROFILE/liblook_ffi.a\" \"$PROJECT_DIR/RustBuild/liblook_ffi.a\"\nelse\n  echo \"warning: Rust build skipped; using existing RustBuild/liblook_ffi.a\"\n  if [ ! -f \"$PROJECT_DIR/RustBuild/liblook_ffi.a\" ]; then\n    echo \"error: missing fallback RustBuild/liblook_ffi.a\"\n    exit 1\n  fi\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -269,8 +269,9 @@
 		CE158B292F80D9B0001BAA87 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -278,6 +279,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -303,8 +305,9 @@
 		CE158B2A2F80D9B0001BAA87 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -312,6 +315,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				OTHER_LDFLAGS = (
 					"$(inherited)",

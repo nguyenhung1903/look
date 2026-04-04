@@ -12,6 +12,10 @@ private func look_record_usage(_ candidateID: UnsafePointer<CChar>?, _ action: U
 nonisolated
 private func look_free_cstring(_ ptr: UnsafeMutablePointer<CChar>?)
 
+@_silgen_name("look_reload_config")
+nonisolated
+private func look_reload_config() -> Bool
+
 final class EngineBridge {
     static let shared = EngineBridge()
 
@@ -55,6 +59,10 @@ final class EngineBridge {
                 look_record_usage(idCstr, actionCstr)
             }
         }
+    }
+
+    nonisolated func reloadConfig() -> Bool {
+        look_reload_config()
     }
 
     nonisolated private func fallbackResults() -> [LauncherResult] {

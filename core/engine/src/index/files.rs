@@ -1,28 +1,25 @@
-use crate::config::{FILE_SCAN_DEPTH, FILE_SCAN_LIMIT, FILE_SCAN_ROOT_SUFFIXES, SKIP_DIR_NAMES};
+use crate::config::RuntimeConfig;
 use look_indexing::{Candidate, CandidateKind};
 use std::collections::HashSet;
-use std::env;
 use std::fs;
 
-pub fn discover_local_files_and_folders(seen: &mut HashSet<String>, out: &mut Vec<Candidate>) {
-    let Ok(home) = env::var("HOME") else {
-        return;
-    };
-
-    let roots: Vec<String> = FILE_SCAN_ROOT_SUFFIXES
-        .iter()
-        .map(|suffix| format!("{home}/{suffix}"))
-        .collect();
+pub fn discover_local_files_and_folders(
+    config: &RuntimeConfig,
+    seen: &mut HashSet<String>,
+    out: &mut Vec<Candidate>,
+) {
+    let roots = &config.file_scan_roots;
 
     let mut file_count = 0usize;
     for root in roots {
         walk_files(
-            &root,
-            FILE_SCAN_DEPTH,
+            root,
+            config.file_scan_depth,
             seen,
             out,
             &mut file_count,
-            FILE_SCAN_LIMIT,
+            config.file_scan_limit,
+            &config.skip_dir_names,
         );
     }
 }
@@ -34,6 +31,7 @@ fn walk_files(
     out: &mut Vec<Candidate>,
     file_count: &mut usize,
     file_limit: usize,
+    skip_dir_names: &[String],
 ) {
     if depth == 0 || *file_count >= file_limit {
         return;
@@ -64,7 +62,7 @@ fn walk_files(
 
         if file_type.is_dir() {
             if !name.ends_with(".app") {
-                if should_skip_dir(name) {
+                if should_skip_dir(name, skip_dir_names) {
                     continue;
                 }
 
@@ -74,7 +72,15 @@ fn walk_files(
                     c.subtitle = Some("folder".to_string());
                     out.push(c);
                 }
-                walk_files(path_str, depth - 1, seen, out, file_count, file_limit);
+                walk_files(
+                    path_str,
+                    depth - 1,
+                    seen,
+                    out,
+                    file_count,
+                    file_limit,
+                    skip_dir_names,
+                );
             }
         } else if file_type.is_file() {
             *file_count += 1;
@@ -88,7 +94,7 @@ fn walk_files(
     }
 }
 
-fn should_skip_dir(name: &str) -> bool {
+fn should_skip_dir(name: &str, skip_dir_names: &[String]) -> bool {
     let lower = name.to_lowercase();
-    SKIP_DIR_NAMES.contains(&lower.as_str())
+    skip_dir_names.iter().any(|entry| entry == &lower)
 }

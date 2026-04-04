@@ -1,17 +1,24 @@
-use crate::config::{APP_SCAN_DEPTH, APP_SCAN_ROOTS};
+use crate::config::RuntimeConfig;
 use look_indexing::{Candidate, CandidateKind};
 use std::collections::HashSet;
 use std::env;
 use std::fs;
 
-pub fn discover_installed_apps(seen: &mut HashSet<String>, out: &mut Vec<Candidate>) {
-    let mut roots: Vec<String> = APP_SCAN_ROOTS.iter().map(|s| s.to_string()).collect();
+pub fn discover_installed_apps(
+    config: &RuntimeConfig,
+    seen: &mut HashSet<String>,
+    out: &mut Vec<Candidate>,
+) {
+    let mut roots = config.app_scan_roots.clone();
     if let Ok(home) = env::var("HOME") {
-        roots.push(format!("{home}/Applications"));
+        let home_apps = format!("{home}/Applications");
+        if !roots.iter().any(|root| root == &home_apps) {
+            roots.push(home_apps);
+        }
     }
 
     for root in roots {
-        walk_apps(&root, APP_SCAN_DEPTH, seen, out);
+        walk_apps(&root, config.app_scan_depth, seen, out);
     }
 }
 

@@ -15,6 +15,8 @@ struct LauncherView: View {
     @State private var commandFeedback = ""
     @State private var keyboardMonitor = KeyboardSelectionMonitor()
     @State private var searchTask: Task<Void, Never>?
+    @State private var bannerMessage: String?
+    @State private var bannerTask: Task<Void, Never>?
     @FocusState private var isQueryFocused: Bool
 
     private let bridge = EngineBridge.shared
@@ -22,7 +24,19 @@ struct LauncherView: View {
     private let commandCatalog: [AppCommand] = AppConstants.Launcher.commandCatalog
 
     private var filteredResults: [LauncherResult] {
-        backendResults
+        var seenTitles = Set<String>()
+        var unique: [LauncherResult] = []
+        for item in backendResults {
+            let key = item.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if key.isEmpty {
+                unique.append(item)
+                continue
+            }
+            if seenTitles.insert(key).inserted {
+                unique.append(item)
+            }
+        }
+        return unique
     }
 
     private var commandNamePart: String {
@@ -475,6 +489,45 @@ struct LauncherView: View {
         NSWorkspace.shared.open(url)
     }
 
+    private func reloadConfig() {
+        themeStore.reloadFromConfig()
+        let backendReloaded = bridge.reloadConfig()
+        showBanner(backendReloaded ? "Config reloaded" : "Config reload failed")
+        if isCommandMode {
+            commandFeedback = backendReloaded ? "Config reloaded" : "Config reload failed"
+        }
+        refreshSearchResults()
+        focusActiveInput()
+    }
+
+    private func focusActiveInput() {
+        if appUIState.showsThemeSettings {
+            NotificationCenter.default.post(name: .lookFocusSettingsInputRequested, object: nil)
+            return
+        }
+
+        DispatchQueue.main.async {
+            isQueryFocused = true
+        }
+    }
+
+    private func showBanner(_ message: String) {
+        bannerTask?.cancel()
+        withAnimation(.easeOut(duration: 0.15)) {
+            bannerMessage = message
+        }
+
+        bannerTask = Task {
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeIn(duration: 0.15)) {
+                    bannerMessage = nil
+                }
+            }
+        }
+    }
+
     private func selectCommand(_ commandID: String) {
         activeCommandID = commandID
         selectedCommandID = commandID
@@ -500,12 +553,23 @@ struct LauncherView: View {
                         )
                             .textFieldStyle(.plain)
                             .focused($isQueryFocused)
+                            .onTapGesture {
+                                DispatchQueue.main.async {
+                                    isQueryFocused = true
+                                }
+                            }
                             .onSubmit(handleSubmit)
 
                         if isCommandMode {
                             if let activeCommand {
                                 Text("/\(activeCommand.title)")
-                                    .font(.caption.monospaced())
+                                    .font(
+                                        themeStore.uiFont(
+                                            size: CGFloat(themeStore.settings.fontSize - 1),
+                                            weight: .regular
+                                        )
+                                    )
+                                    .foregroundStyle(themeStore.fontColor())
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
                                     .background(.green.opacity(0.18), in: Capsule())
@@ -514,9 +578,14 @@ struct LauncherView: View {
                                 exitCommandMode()
                             }
                             .keyboardShortcut(.escape, modifiers: [.shift])
-                            .font(.caption)
+                            .font(
+                                themeStore.uiFont(
+                                    size: CGFloat(themeStore.settings.fontSize - 1),
+                                    weight: .regular
+                                )
+                            )
                             .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
                         }
                     }
                     .padding(.horizontal, 12)
@@ -526,6 +595,21 @@ struct LauncherView: View {
                         in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                     )
 
+                    if let bannerMessage {
+                        Text(bannerMessage)
+                            .font(
+                                themeStore.uiFont(
+                                    size: CGFloat(themeStore.settings.fontSize - 1),
+                                    weight: .semibold
+                                )
+                            )
+                            .foregroundStyle(themeStore.fontColor())
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.green.opacity(0.42), in: Capsule())
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
                     if isCommandMode {
                         Text(
                             liveCommandPreview
@@ -533,8 +617,13 @@ struct LauncherView: View {
                                     ? AppConstants.Launcher.commandEmptyMessage
                                     : commandFeedback)
                         )
-                            .font(.system(size: AppConstants.Launcher.commandResultFontSize, weight: .semibold))
-                            .foregroundStyle(.primary)
+                            .font(
+                                themeStore.uiFont(
+                                    size: CGFloat(themeStore.settings.fontSize + 4),
+                                    weight: .semibold
+                                )
+                            )
+                            .foregroundStyle(themeStore.fontColor())
                             .lineLimit(1)
                     }
 
@@ -550,10 +639,20 @@ struct LauncherView: View {
                                             .foregroundStyle(.green)
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text("/\(command.title)")
-                                                .font(.system(size: 14, weight: .semibold))
+                                                .font(
+                                                    themeStore.uiFont(
+                                                        size: CGFloat(themeStore.settings.fontSize),
+                                                        weight: .semibold
+                                                    )
+                                                )
                                             Text(command.detail)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
+                                                .font(
+                                                    themeStore.uiFont(
+                                                        size: CGFloat(themeStore.settings.fontSize - 1),
+                                                        weight: .regular
+                                                    )
+                                                )
+                                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
                                         }
                                         Spacer(minLength: 0)
                                     }
@@ -579,7 +678,11 @@ struct LauncherView: View {
                                     ForEach(filteredResults) { result in
                                         LauncherRowView(
                                             result: result,
-                                            isSelected: selectedResultID == result.id
+                                            isSelected: selectedResultID == result.id,
+                                            onOpen: {
+                                                selectedResultID = result.id
+                                                openSelectedApp()
+                                            }
                                         )
                                         .id(result.id)
                                     }
@@ -600,11 +703,18 @@ struct LauncherView: View {
                             ? AppConstants.Launcher.commandHint
                             : AppConstants.Launcher.normalHint
                     )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(
+                            themeStore.uiFont(
+                                size: CGFloat(themeStore.settings.fontSize - 1),
+                                weight: .regular
+                            )
+                        )
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
                 }
             }
             .padding(14)
+            .font(themeStore.uiFont())
+            .foregroundStyle(themeStore.fontColor())
             .background(
                 .black.opacity(0.16),
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -615,10 +725,8 @@ struct LauncherView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(
-                    hasSudoWarning ? .orange.opacity(0.95)
-                        : (isCommandMode && !appUIState.showsThemeSettings
-                            ? .green.opacity(0.75) : .white.opacity(0.12)),
-                    lineWidth: 1
+                    hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(),
+                    lineWidth: themeStore.borderLineWidth()
                 )
         )
         .ignoresSafeArea()
@@ -631,6 +739,7 @@ struct LauncherView: View {
         }
         .onDisappear {
             searchTask?.cancel()
+            bannerTask?.cancel()
             keyboardMonitor.stop()
         }
         .onChange(of: query) { _, _ in
@@ -652,6 +761,7 @@ struct LauncherView: View {
         .onChange(of: appUIState.showsThemeSettings) { _, showsSettings in
             if showsSettings {
                 keyboardMonitor.stop()
+                NotificationCenter.default.post(name: .lookFocusSettingsInputRequested, object: nil)
             } else {
                 startKeyboardNavigationIfNeeded()
                 DispatchQueue.main.async {
@@ -668,6 +778,12 @@ struct LauncherView: View {
             DispatchQueue.main.async {
                 isQueryFocused = true
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lookReloadConfigRequested)) { _ in
+            reloadConfig()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lookRefocusInputRequested)) { _ in
+            focusActiveInput()
         }
     }
 

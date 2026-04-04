@@ -89,6 +89,17 @@ struct ThemeSettings: Codable {
     var tintOpacity: Double = 0.55
     var blurMaterial: LauncherBlurMaterial = .hudWindow
     var blurOpacity: Double = 0.95
+    var fontName: String = "SF Pro Text"
+    var fontSize: Double = 14
+    var fontRed: Double = 0.96
+    var fontGreen: Double = 0.96
+    var fontBlue: Double = 0.98
+    var fontOpacity: Double = 0.96
+    var borderThickness: Double = 1.0
+    var borderRed: Double = 1.0
+    var borderGreen: Double = 1.0
+    var borderBlue: Double = 1.0
+    var borderOpacity: Double = 0.12
     var backgroundImagePath: String?
     var backgroundImageBookmark: Data?
     var backgroundImageMode: BackgroundImageMode = .fill

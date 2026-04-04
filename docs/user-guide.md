@@ -31,7 +31,9 @@ This includes:
 
 - press `Tab` to move down the list
 - press `Shift+Tab` to move up the list
+- press `Up` / `Down` to move selection
 - press `Enter` to open the selected result
+- click a row to open it
 
 ### 2) Web search handoff
 
@@ -83,9 +85,14 @@ To open settings:
 
 Settings are shown inside the same launcher window and include:
 
-- appearance: tint color, blur style, blur opacity
+- appearance: tint color, blur style, blur opacity, font family/size, text color, border style
 - background: image picker, layout mode, image blur, image opacity
 - shortcuts: built-in documentation tab
+
+Other settings UX:
+
+- **Save Config** writes current UI values back into `~/.look.config`
+- font name field supports installed-font suggestions in a dropdown
 
 Background image modes:
 
@@ -93,6 +100,82 @@ Background image modes:
 - `Fill`
 - `Stretch`
 - `Duplicate`
+
+You can also configure backend indexing behavior with a user config file:
+
+- path: `~/.look.config`
+- optional override path: `LOOK_CONFIG_PATH=/path/to/custom.config`
+- first launch creates this file automatically with defaults if it does not exist
+- live reload: press `Cmd+Shift+;` after editing the file
+
+Supported config keys (`key=value`):
+
+Backend indexing keys:
+
+- `app_scan_roots`: comma-separated app roots to scan (absolute paths); default: `/Applications,/System/Applications,/System/Applications/Utilities`
+- `app_scan_depth`: recursion depth for app scanning (positive integer); default: `3`
+- `file_scan_roots`: comma-separated file roots to scan; supports `~/...`, absolute paths, and home-relative names like `Documents`; default: `Desktop,Documents,Downloads`
+- `file_scan_depth`: recursion depth for file scanning (positive integer); default: `2`
+- `file_scan_limit`: max indexed files per refresh (positive integer); default: `2000`
+- `skip_dir_names`: comma-separated directory names to ignore during file scan (case-insensitive); default: `node_modules,target,build,dist,library,applications,old firefox data`
+
+UI keys:
+
+- `ui_tint_red`: launcher tint red channel (`0..1`); default: `0.08`
+- `ui_tint_green`: launcher tint green channel (`0..1`); default: `0.10`
+- `ui_tint_blue`: launcher tint blue channel (`0..1`); default: `0.12`
+- `ui_tint_opacity`: launcher tint opacity (`0..1`); default: `0.55`
+- `ui_blur_material`: blur material (`hudWindow`, `sidebar`, `menu`, `underWindowBackground`); default: `hudWindow`
+- `ui_blur_opacity`: blur layer opacity (`0..1`); default: `0.95`
+- `ui_font_name`: macOS installed font family/name (example: `SF Pro Text`, `Menlo`); default: `SF Pro Text`
+- `ui_font_size`: base UI font size (positive number); default: `14`
+- `ui_font_red`: text red channel (`0..1`); default: `0.96`
+- `ui_font_green`: text green channel (`0..1`); default: `0.96`
+- `ui_font_blue`: text blue channel (`0..1`); default: `0.98`
+- `ui_font_opacity`: text opacity (`0..1`); default: `0.96`
+- `ui_border_thickness`: launcher border thickness (positive number); default: `1.0`
+- `ui_border_red`: border red channel (`0..1`); default: `1.0`
+- `ui_border_green`: border green channel (`0..1`); default: `1.0`
+- `ui_border_blue`: border blue channel (`0..1`); default: `1.0`
+- `ui_border_opacity`: border opacity (`0..1`); default: `0.12`
+
+Config behavior:
+
+- unknown keys are ignored
+- invalid values are ignored and existing/default values are kept
+- `#` starts a comment on a line
+
+Example:
+
+```text
+# ~/.look.config
+# Backend indexing
+app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities
+app_scan_depth=3
+file_scan_roots=Desktop,Documents,Downloads
+file_scan_depth=2
+file_scan_limit=2000
+skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
+
+# UI theme
+ui_tint_red=0.08
+ui_tint_green=0.10
+ui_tint_blue=0.12
+ui_tint_opacity=0.55
+ui_blur_material=hudWindow
+ui_blur_opacity=0.95
+ui_font_name=SF Pro Text
+ui_font_size=14
+ui_font_red=0.96
+ui_font_green=0.96
+ui_font_blue=0.98
+ui_font_opacity=0.96
+ui_border_thickness=1.0
+ui_border_red=1.0
+ui_border_green=1.0
+ui_border_blue=1.0
+ui_border_opacity=0.12
+```
 
 ## Keyboard shortcuts reference
 
@@ -103,6 +186,13 @@ Background image modes:
 - `Shift+Esc`: exit command mode
 - `Cmd+Enter`: search query on Google
 - `Cmd+Shift+,`: open/close settings panel
+- `Cmd+Shift+;`: reload `.look.config`
+- `Cmd+-`: zoom out (temporary UI scale)
+- `Cmd+=` (`Cmd++`): zoom in (temporary UI scale)
+- `Cmd+0`: reset temporary UI scale
+
+In Settings panel, use **Save Config** to write current UI values back to `~/.look.config`.
+Font name supports installed-font suggestions in the UI.
 
 ## What look is for
 

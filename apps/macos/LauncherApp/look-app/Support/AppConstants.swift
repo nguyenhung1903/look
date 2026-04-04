@@ -20,7 +20,7 @@ enum AppConstants {
             AppCommand(id: "calc", title: "calc", detail: "Evaluate math expression", placeholder: "Type math expression"),
         ]
 
-        static let normalHint = "Tab/Shift+Tab move  •  Cmd+Enter web search  •  / command mode"
+        static let normalHint = "Tab/Shift+Tab move  •  Cmd+Enter web search  •  Cmd+Shift+; reload config  •  / command mode"
         static let commandHint = "Tab/Shift+Tab select command  •  Enter run  •  Shift+Esc exit"
         static let commandEmptyMessage = "Type expression and press Enter"
     }

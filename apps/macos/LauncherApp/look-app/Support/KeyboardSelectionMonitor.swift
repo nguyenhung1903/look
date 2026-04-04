@@ -30,6 +30,16 @@ final class KeyboardSelectionMonitor {
                 return nil
             }
 
+            if event.keyCode == 126 {
+                onPrevious()
+                return nil
+            }
+
+            if event.keyCode == 125 {
+                onNext()
+                return nil
+            }
+
             guard event.keyCode == 48 else {
                 return event
             }

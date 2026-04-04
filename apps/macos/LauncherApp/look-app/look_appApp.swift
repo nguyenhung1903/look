@@ -26,6 +26,32 @@ struct look_appApp: App {
                     appUIState.showsThemeSettings.toggle()
                 }
                 .keyboardShortcut(",", modifiers: [.command, .shift])
+
+                Button("Reload Config") {
+                    NotificationCenter.default.post(name: .lookReloadConfigRequested, object: nil)
+                    NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
+                }
+                .keyboardShortcut(";", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("Zoom In") {
+                    themeStore.zoomIn()
+                    NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
+                }
+                .keyboardShortcut("=", modifiers: [.command])
+
+                Button("Zoom Out") {
+                    themeStore.zoomOut()
+                    NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
+                }
+                .keyboardShortcut("-", modifiers: [.command])
+
+                Button("Actual Size") {
+                    themeStore.resetZoom()
+                    NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
+                }
+                .keyboardShortcut("0", modifiers: [.command])
             }
         }
     }

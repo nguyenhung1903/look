@@ -133,7 +133,8 @@ impl QueryEngine {
 
     pub fn bootstrap_sqlite(path: impl AsRef<Path>) -> Result<(), StorageError> {
         let mut store = SqliteStore::open(path)?;
-        let discovered_candidates = discover_candidates();
+        let runtime_config = RuntimeConfig::load();
+        let discovered_candidates = discover_candidates(&runtime_config);
         if discovered_candidates.is_empty() {
             return Ok(());
         }
@@ -178,10 +179,10 @@ fn contains_match_score(query: &str, candidate: &Candidate) -> Option<i64> {
         return Some(SCORE_TITLE_CONTAINS);
     }
 
-    if let Some(sub) = subtitle.as_deref() {
-        if sub.contains(query) {
-            return Some(SCORE_SUBTITLE_CONTAINS);
-        }
+    if let Some(sub) = subtitle.as_deref()
+        && sub.contains(query)
+    {
+        return Some(SCORE_SUBTITLE_CONTAINS);
     }
 
     let terms: Vec<&str> = query.split_whitespace().collect();

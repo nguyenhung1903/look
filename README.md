@@ -12,6 +12,8 @@ Default behavior:
 
 The project is designed around low latency, keyboard-first interaction, and a small native footprint.
 
+User-level behavior can be configured with `~/.look.config` (indexing + UI theme/font; see `docs/user-guide.md` for supported keys).
+
 ## Repository layout
 
 ```text
@@ -50,11 +52,14 @@ The project is designed around low latency, keyboard-first interaction, and a sm
 ## Current keyboard UX
 
 - `Tab` / `Shift+Tab`: move through app results or switch command type in command mode
+- `Up` / `Down`: move through app results or command list
 - `/`: enter command mode (defaults to `calc`)
 - `Shift+Esc`: exit command mode
 - `Enter`: launch selected app or execute active command
 - `Cmd+Enter`: web search current query using Google
 - `Cmd+Shift+,`: open/close settings panel
+- `Cmd+Shift+;`: reload `.look.config`
+- `Cmd+-`, `Cmd+=`, `Cmd+0`: temporary UI zoom out/in/reset
 
 ## Quick start
 
