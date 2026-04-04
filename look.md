@@ -623,4 +623,3 @@ The project should prefer:
 - clarity over configurability
 
 That focus is likely the main reason the project could become genuinely useful.
-
