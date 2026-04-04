@@ -3,14 +3,19 @@ import Foundation
 
 final class KeyboardSelectionMonitor {
     private var monitor: Any?
+    private var isKillConfirmationActive: () -> Bool = { false }
 
     func start(
         onNext: @escaping () -> Void,
         onPrevious: @escaping () -> Void,
         onExitCommandMode: @escaping () -> Void,
-        onWebSearch: @escaping () -> Void
+        onWebSearch: @escaping () -> Void,
+        onConfirmKill: (() -> Void)? = nil,
+        onCancelKill: (() -> Void)? = nil,
+        killConfirmationActive: @escaping () -> Bool = { false }
     ) {
         guard monitor == nil else { return }
+        self.isKillConfirmationActive = killConfirmationActive
 
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 36 && event.modifierFlags.contains(.command) {
@@ -30,6 +35,37 @@ final class KeyboardSelectionMonitor {
                 return nil
             }
 
+            if event.keyCode == 53 {
+                if killConfirmationActive() {
+                    onCancelKill?()
+                    return nil
+                } else {
+                    onExitCommandMode()
+                    return nil
+                }
+            }
+
+            if killConfirmationActive() {
+                let char = event.charactersIgnoringModifiers?.lowercased()
+                if char == "y" {
+                    onConfirmKill?()
+                    return nil
+                }
+                if char == "n" {
+                    onCancelKill?()
+                    return nil
+                }
+            }
+
+            if event.keyCode == 48 {
+                if event.modifierFlags.contains(.shift) {
+                    onPrevious()
+                } else {
+                    onNext()
+                }
+                return nil
+            }
+
             if event.keyCode == 126 {
                 onPrevious()
                 return nil
@@ -40,16 +76,7 @@ final class KeyboardSelectionMonitor {
                 return nil
             }
 
-            guard event.keyCode == 48 else {
-                return event
-            }
-
-            if event.modifierFlags.contains(.shift) {
-                onPrevious()
-            } else {
-                onNext()
-            }
-            return nil
+            return event
         }
     }
 

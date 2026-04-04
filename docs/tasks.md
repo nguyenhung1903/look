@@ -23,15 +23,16 @@ This is the execution breakdown for the next backend-focused milestone.
 - [x] implement app index source (`/Applications`, `/System/Applications`, `~/Applications`)
 - [x] implement file/folder index source with root config defaults
 - [x] add System Settings source from `.appex`/`.prefPane` discovery
-- [ ] support exclude paths and hidden file policy
+- [x] support exclude paths and hidden file policy
 - [x] add startup full scan + snapshot upsert
 - [x] persist index snapshots to SQLite
 
 ## Milestone D: Bridge and app integration
 
-- [ ] finalize FFI API (`init`, `search`, `record_action`, `update_settings`)
+- [x] finalize FFI API (`init`, `search`, `record_action`, `translate`)
 - [x] switch SwiftUI launcher from seed data to engine results
 - [x] wire action execution path (open app/path/web, run command)
+- [x] translate text via FFI (`t"word` + Enter)
 - [ ] route settings updates to backend persistence
 - [ ] add structured error mapping for UI feedback
 
@@ -39,8 +40,8 @@ This is the execution breakdown for the next backend-focused milestone.
 
 - [ ] log execution events to `usage_events`
 - [ ] implement recency/frequency score boost
-- [ ] apply shell safety policy (`sudo` warning, confirm mode option)
-- [ ] add numeric guardrails for calc
+- [x] apply shell safety policy (`sudo` warning, confirm mode option)
+- [x] add numeric guardrails for calc
 - [ ] add tests for scoring and safety rules
 
 ## Milestone F: Performance and polish
@@ -61,3 +62,10 @@ This is the execution breakdown for the next backend-focused milestone.
 - [ ] add ffi-level smoke tests for `look_search_json` and `look_record_usage`
 - [ ] add debug logging hooks (startup indexing summary, query timing, action execution outcome)
 - [ ] add a log-level toggle (`error`/`info`/`debug`) via env var for local troubleshooting
+
+## Backlog: UI Enhancements
+
+- [ ] **App list preview**: 2-column layout with icon/name on left, info/preview on right (image preview, app info)
+- [ ] **System info command**: Add `/sys` command to view system info (memory, CPU, battery, weather)
+- [ ] **Homebrew release**: Package app for homebrew installation
+- [ ] **Build script**: Create release build and curl installer script

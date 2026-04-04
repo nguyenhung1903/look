@@ -35,6 +35,10 @@ This includes:
 - press `Enter` to open the selected result
 - click a row to open it
 
+Quick prefix action in the same input:
+
+- type `t"word or phrase` and press `Enter`: translate text and show the result banner in app
+
 ### 2) Web search handoff
 
 If you want to search the web from the same query:
@@ -55,12 +59,13 @@ In command mode:
 
 - `Tab` / `Shift+Tab` switches command type
 - `Enter` runs the current command input
-- `Shift+Esc` exits command mode
+- `Escape` exits command mode
 
 Available commands:
 
 - `calc`: evaluate math expressions
 - `shell`: run shell commands
+- `kill`: force kill a running app (see Kill command shortcuts above)
 
 Examples:
 
@@ -114,9 +119,12 @@ Backend indexing keys:
 
 - `app_scan_roots`: comma-separated app roots to scan (absolute paths); default: `/Applications,/System/Applications,/System/Applications/Utilities`
 - `app_scan_depth`: recursion depth for app scanning (positive integer); default: `3`
+- `app_exclude_paths`: comma-separated paths to exclude from app indexing (supports `~/...`, absolute paths, and home-relative names); default: empty
+- `app_exclude_names`: comma-separated app display names to exclude (case-insensitive, `.app` suffix optional); default: empty
 - `file_scan_roots`: comma-separated file roots to scan; supports `~/...`, absolute paths, and home-relative names like `Documents`; default: `Desktop,Documents,Downloads`
 - `file_scan_depth`: recursion depth for file scanning (positive integer); default: `2`
 - `file_scan_limit`: max indexed files per refresh (positive integer); default: `2000`
+- `file_exclude_paths`: comma-separated paths to exclude from file/folder indexing (supports `~/...`, absolute paths, and home-relative names); default: empty
 - `skip_dir_names`: comma-separated directory names to ignore during file scan (case-insensitive); default: `node_modules,target,build,dist,library,applications,old firefox data`
 
 UI keys:
@@ -152,9 +160,12 @@ Example:
 # Backend indexing
 app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities
 app_scan_depth=3
+app_exclude_paths=
+app_exclude_names=
 file_scan_roots=Desktop,Documents,Downloads
 file_scan_depth=2
 file_scan_limit=2000
+file_exclude_paths=
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
 
 # UI theme
@@ -181,15 +192,22 @@ ui_border_opacity=0.12
 
 - `Tab`: next result / next command
 - `Shift+Tab`: previous result / previous command
-- `Enter`: open selected result or run active command
+- `Enter`: open selected result, run command, translate (if `t"...`), or confirm kill
 - `/`: enter command mode
-- `Shift+Esc`: exit command mode
+- `Escape`: exit command mode (or cancel confirmation)
 - `Cmd+Enter`: search query on Google
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
 - `Cmd+-`: zoom out (temporary UI scale)
 - `Cmd+=` (`Cmd++`): zoom in (temporary UI scale)
 - `Cmd+0`: reset temporary UI scale
+
+### Kill command shortcuts
+
+- `Up` / `Down`: navigate app list
+- `Enter`: select app (shows confirmation)
+- `Y` / click "Yes": confirm kill
+- `N` / click "No": cancel
 
 In Settings panel, use **Save Config** to write current UI values back to `~/.look.config`.
 Font name supports installed-font suggestions in the UI.
@@ -203,3 +221,9 @@ look is built for:
 - quick command-style utility actions in one place
 
 It is not trying to be a full plugin ecosystem or cloud assistant. The core goal is speed, clarity, and predictable local behavior.
+
+## Planned features
+
+- **App preview**: 2-column layout with icon/name on left, info/preview on right
+- **System info command**: `/sys` command for memory, CPU, battery, weather
+- **Homebrew release**: Installation via homebrew

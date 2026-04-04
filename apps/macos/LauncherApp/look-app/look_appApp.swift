@@ -15,7 +15,7 @@ struct look_appApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .frame(minWidth: 620, minHeight: 420)
+                .frame(minWidth: 620, minHeight: 600)
                 .background(WindowConfigurator())
                 .environmentObject(appUIState)
                 .environmentObject(themeStore)

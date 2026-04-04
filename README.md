@@ -4,15 +4,19 @@ A minimal, rofi-inspired macOS launcher focused on fast local actions:
 
 - launch installed apps
 - search local files and folders by name
-- quick command mode for calculator and shell execution
+- quick command mode for calculator, shell, and kill
 
 Default behavior:
 
+- translate text with `t"word` + `Enter`
 - web search handoff with `Cmd+Enter` (Google)
+- force quit apps with `/kill`
 
 The project is designed around low latency, keyboard-first interaction, and a small native footprint.
 
 User-level behavior can be configured with `~/.look.config` (indexing + UI theme/font; see `docs/user-guide.md` for supported keys).
+
+Indexing config supports include roots plus exclude rules for both apps and files.
 
 ## Repository layout
 
@@ -52,10 +56,11 @@ User-level behavior can be configured with `~/.look.config` (indexing + UI theme
 ## Current keyboard UX
 
 - `Tab` / `Shift+Tab`: move through app results or switch command type in command mode
-- `Up` / `Down`: move through app results or command list
+- `Up` / `Down`: move through app results or kill app list
 - `/`: enter command mode (defaults to `calc`)
-- `Shift+Esc`: exit command mode
-- `Enter`: launch selected app or execute active command
+- `Escape`: exit command mode
+- `Enter`: launch selected app, execute active command, translate (if `t"...`), or confirm kill
+- `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
@@ -91,7 +96,8 @@ In scope for first milestone:
 - query app index and launch with Enter
 - query file/folder name index and open/reveal
 - web search handoff with Google
-- command mode with `calc` and `shell`
+- translate text with `t"...`
+- command mode with `calc`, `shell`, and `kill`
 - predictable, local-first behavior
 
 Out of scope for v1:
