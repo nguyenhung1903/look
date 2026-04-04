@@ -8,10 +8,13 @@ pub const APP_SCAN_ROOTS: [&str; 3] = [
 ];
 
 pub const APP_SCAN_DEPTH: usize = 3;
+pub const APP_EXCLUDE_PATHS: [&str; 0] = [];
+pub const APP_EXCLUDE_NAMES: [&str; 0] = [];
 
 pub const FILE_SCAN_ROOT_SUFFIXES: [&str; 3] = ["Desktop", "Documents", "Downloads"];
 pub const FILE_SCAN_DEPTH: usize = 2;
 pub const FILE_SCAN_LIMIT: usize = 2000;
+pub const FILE_EXCLUDE_PATHS: [&str; 0] = [];
 
 pub const SCORE_TITLE_CONTAINS: i64 = 1200;
 pub const SCORE_SUBTITLE_CONTAINS: i64 = 900;
@@ -48,9 +51,12 @@ pub const SKIP_DIR_NAMES: [&str; 7] = [
 pub struct RuntimeConfig {
     pub app_scan_roots: Vec<String>,
     pub app_scan_depth: usize,
+    pub app_exclude_paths: Vec<String>,
+    pub app_exclude_names: Vec<String>,
     pub file_scan_roots: Vec<String>,
     pub file_scan_depth: usize,
     pub file_scan_limit: usize,
+    pub file_exclude_paths: Vec<String>,
     pub skip_dir_names: Vec<String>,
 }
 
@@ -62,9 +68,21 @@ impl Default for RuntimeConfig {
                 .map(|value| value.to_string())
                 .collect(),
             app_scan_depth: APP_SCAN_DEPTH,
+            app_exclude_paths: APP_EXCLUDE_PATHS
+                .iter()
+                .map(|value| value.to_string())
+                .collect(),
+            app_exclude_names: APP_EXCLUDE_NAMES
+                .iter()
+                .map(|value| value.to_string())
+                .collect(),
             file_scan_roots: default_file_scan_roots(),
             file_scan_depth: FILE_SCAN_DEPTH,
             file_scan_limit: FILE_SCAN_LIMIT,
+            file_exclude_paths: FILE_EXCLUDE_PATHS
+                .iter()
+                .map(|value| value.to_string())
+                .collect(),
             skip_dir_names: SKIP_DIR_NAMES
                 .iter()
                 .map(|value| value.to_string())
@@ -113,6 +131,18 @@ impl RuntimeConfig {
                         self.app_scan_depth = parsed;
                     }
                 }
+                "app_exclude_paths" => {
+                    self.app_exclude_paths = parse_csv(value)
+                        .into_iter()
+                        .map(|entry| expand_path(&entry, home.as_deref()))
+                        .collect::<Vec<_>>();
+                }
+                "app_exclude_names" => {
+                    self.app_exclude_names = parse_csv(value)
+                        .into_iter()
+                        .map(|entry| normalize_app_name(&entry))
+                        .collect::<Vec<_>>();
+                }
                 "file_scan_roots" => {
                     let parsed = parse_csv(value)
                         .into_iter()
@@ -131,6 +161,12 @@ impl RuntimeConfig {
                     if let Some(parsed) = parse_positive_usize(value) {
                         self.file_scan_limit = parsed;
                     }
+                }
+                "file_exclude_paths" => {
+                    self.file_exclude_paths = parse_csv(value)
+                        .into_iter()
+                        .map(|entry| expand_path(&entry, home.as_deref()))
+                        .collect::<Vec<_>>();
                 }
                 "skip_dir_names" => {
                     let parsed = parse_csv(value)
@@ -175,9 +211,12 @@ fn default_config_contents() -> &'static str {
 # Backend indexing\n\
 app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities\n\
 app_scan_depth=3\n\
+app_exclude_paths=\n\
+app_exclude_names=\n\
 file_scan_roots=Desktop,Documents,Downloads\n\
 file_scan_depth=2\n\
 file_scan_limit=2000\n\
+file_exclude_paths=\n\
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data\n\
 \n\
 # UI theme\n\
@@ -247,6 +286,10 @@ fn expand_path(value: &str, home: Option<&str>) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
+fn normalize_app_name(value: &str) -> String {
+    value.trim().trim_end_matches(".app").trim().to_lowercase()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -270,5 +313,14 @@ mod tests {
         assert_eq!(parse_positive_usize("5"), Some(5));
         assert_eq!(parse_positive_usize("0"), None);
         assert_eq!(parse_positive_usize("not-a-number"), None);
+    }
+
+    #[test]
+    fn normalize_app_name_handles_suffix_and_case() {
+        assert_eq!(normalize_app_name("Safari.app"), "safari");
+        assert_eq!(
+            normalize_app_name("  Visual Studio Code  "),
+            "visual studio code"
+        );
     }
 }

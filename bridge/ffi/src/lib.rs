@@ -183,3 +183,110 @@ fn refresh_engine_cache() {
         }
     }
 }
+
+#[derive(serde::Deserialize)]
+struct TranslateResponse(serde_json::Value);
+
+#[unsafe(no_mangle)]
+pub extern "C" fn look_translate_json(text: *const c_char, target_lang: *const c_char) -> *mut c_char {
+    let text = cstr_to_string(text);
+    let target_lang = cstr_to_string(target_lang);
+
+    if text.trim().is_empty() {
+        let cstring = CString::new("{\"error\":\"empty text\"}").expect("valid json");
+        return store_json_allocation(cstring);
+    }
+
+    let encoded_text = urlencodingencode(&text);
+    let url = format!(
+        "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",
+        target_lang,
+        encoded_text
+    );
+
+    let output = std::process::Command::new("curl")
+        .args(["-s", "-m", "3", "-A", "Mozilla/5.0", &url])
+        .output();
+
+    let body = match output {
+        Ok(out) => {
+            if !out.status.success() {
+                let cstring = CString::new("{\"error\":\"curl failed\"}").expect("valid json");
+                return store_json_allocation(cstring);
+            }
+            match String::from_utf8(out.stdout) {
+                Ok(s) => s,
+                Err(_) => {
+                    let cstring = CString::new("{\"error\":\"utf8 error\"}").expect("valid json");
+                    return store_json_allocation(cstring);
+                }
+            }
+        }
+        Err(_) => {
+            let cstring = CString::new("{\"error\":\"exec error\"}").expect("valid json");
+            return store_json_allocation(cstring);
+        }
+    };
+
+    let parsed: TranslateResponse = match serde_json::from_str(&body) {
+        Ok(p) => p,
+        Err(_) => {
+            let cstring = CString::new("{\"error\":\"parse error\"}").expect("valid json");
+            return store_json_allocation(cstring);
+        }
+    };
+
+    let translated = parse_translate_response(&parsed.0);
+
+    let result = serde_json::json!({
+        "original": text,
+        "translated": translated,
+        "error": null
+    });
+
+    let json = serde_json::to_string(&result).unwrap_or_else(|_| "{\"error\":\"json error\"}".to_string());
+    let cstring = CString::new(json).expect("valid json");
+    store_json_allocation(cstring)
+}
+
+fn parse_translate_response(value: &serde_json::Value) -> String {
+    let arr = match value.as_array() {
+        Some(a) => a,
+        None => return String::new(),
+    };
+
+    let translations = match arr.first() {
+        Some(v) => match v.as_array() {
+            Some(a) => a,
+            None => return String::new(),
+        },
+        None => return String::new(),
+    };
+
+    let mut result = String::new();
+    for group in translations {
+        if let Some(parts) = group.as_array() {
+            if let Some(translated) = parts.first() {
+                if let Some(s) = translated.as_str() {
+                    result.push_str(s);
+                }
+            }
+        }
+    }
+    result
+}
+
+fn urlencodingencode(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                result.push(byte as char);
+            }
+            _ => {
+                result.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    result
+}

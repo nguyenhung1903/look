@@ -354,6 +354,10 @@ struct ThemeSettingsView: View {
                 Text("This panel is intended as living documentation. We can add command and workflow docs here as features grow.")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                     .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+
+                Text("Tips: t\"word to translate | /kill to force quit apps | app_exclude_* to hide from search")
+                    .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
             }
             .padding(.top, 4)
         }

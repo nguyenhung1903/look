@@ -1,11 +1,11 @@
 SHELL := /bin/bash
 
 XCODE_PROJECT := apps/macos/LauncherApp/look-app.xcodeproj
-XCODE_SCHEME := look-app
+XCODE_SCHEME := Look
 XCODE_CONFIG := Debug
 XCODE_DERIVED_DATA := .build/xcode
-APP_BUNDLE := $(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/look-app.app
-APP_BINARY := $(APP_BUNDLE)/Contents/MacOS/look-app
+APP_BUNDLE := $(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/Look.app
+APP_BINARY := $(APP_BUNDLE)/Contents/MacOS/Look
 REAL_DB_PATH := $(HOME)/Library/Application Support/look/look.db
 
 .PHONY: help core-check ffi-check app-build app-run app-open symbols db-path db-status db-shell db-reset db-refresh
@@ -43,7 +43,7 @@ app-open: app-build
 	@open "$(APP_BUNDLE)"
 
 symbols: app-build
-	@nm -gU "$(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/look-app.app/Contents/MacOS/look-app.debug.dylib" | rg "_look_search_json|_look_record_usage|_look_free_cstring"
+	@nm -gU "$(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/Look.app/Contents/MacOS/Look.debug.dylib" | rg "_look_search_json|_look_record_usage|_look_free_cstring"
 
 db-path:
 	@echo "$(REAL_DB_PATH)"

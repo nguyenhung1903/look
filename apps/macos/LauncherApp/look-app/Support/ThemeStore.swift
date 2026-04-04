@@ -373,9 +373,12 @@ final class ThemeStore: ObservableObject {
 # Backend indexing
 app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities
 app_scan_depth=3
+app_exclude_paths=
+app_exclude_names=
 file_scan_roots=Desktop,Documents,Downloads
 file_scan_depth=2
 file_scan_limit=2000
+file_exclude_paths=
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
 
 # UI theme
