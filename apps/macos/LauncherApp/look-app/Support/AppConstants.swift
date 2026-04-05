@@ -22,10 +22,10 @@ enum AppConstants {
             AppCommand(id: "sys", title: "sys", detail: "Show system information", placeholder: "View system info"),
         ]
 
-        static let normalHint = "Tab/Shift+Tab move  •  Enter open  •  t\"text translate  •  Cmd+Enter web  •  / command mode"
-        static let commandHint = "Tab select  •  Cmd+1/2/3  •  Enter run  •  Esc exit"
-        static let killHint = "Up/Down navigate  •  Cmd+1/2/3 switch  •  Y confirm  •  N cancel  •  Cmd+Esc back to list"
-        static let sysHint = "Sys info view  •  Cmd+Esc back to command list (calc)  •  Esc exit"
+        static let normalHint = HintText.Launcher.normal
+        static let commandHint = HintText.Launcher.command
+        static let killHint = HintText.Launcher.kill
+        static let sysHint = HintText.Launcher.sys
         static let commandEmptyMessage = "Type expression and press Enter"
     }
 

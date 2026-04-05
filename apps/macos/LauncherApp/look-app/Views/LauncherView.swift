@@ -2,6 +2,23 @@ import AppKit
 import SwiftUI
 
 struct LauncherView: View {
+    private enum BannerStyle {
+        case success
+        case error
+        case info
+
+        var background: Color {
+            switch self {
+            case .success:
+                return .green.opacity(0.42)
+            case .error:
+                return .red.opacity(0.45)
+            case .info:
+                return .blue.opacity(0.40)
+            }
+        }
+    }
+
     @EnvironmentObject private var appUIState: AppUIState
     @EnvironmentObject private var themeStore: ThemeStore
 
@@ -16,6 +33,8 @@ struct LauncherView: View {
     @State private var keyboardMonitor = KeyboardSelectionMonitor()
     @State private var searchTask: Task<Void, Never>?
     @State private var bannerMessage: String?
+    @State private var bannerStyle: BannerStyle = .info
+    @State private var bannerCopyText: String?
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedKillSuggestionIndex: Int?
     @State private var pendingKillApp: (NSRunningApplication, Int)?
@@ -253,12 +272,7 @@ struct LauncherView: View {
         } else {
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
             if let translationTarget = extractTranslationQuery(from: trimmed) {
-                let result = bridge.translate(text: translationTarget)
-                if let translated = result?.translated, !translated.isEmpty {
-                    showBanner("\(translationTarget) -> \(translated)")
-                } else {
-                    showBanner("Translation failed")
-                }
+                handleTranslation(text: translationTarget)
                 isQueryFocused = true
             } else {
                 openSelectedApp()
@@ -423,12 +437,7 @@ struct LauncherView: View {
         guard !trimmed.isEmpty else { return }
 
         if let translationTarget = extractTranslationQuery(from: trimmed) {
-            let result = bridge.translate(text: translationTarget)
-            if let translated = result?.translated, !translated.isEmpty {
-                showBanner("\(translationTarget) -> \(translated)")
-            } else {
-                showBanner("Translation failed")
-            }
+            handleTranslation(text: translationTarget)
             isQueryFocused = true
             return
         }
@@ -461,18 +470,62 @@ struct LauncherView: View {
         }
     }
 
-    private func showBanner(_ message: String) {
+    private func toggleWindowVisibility() {
+        guard let window = NSApplication.shared.windows.first else { return }
+
+        if window.isVisible && NSApplication.shared.isActive {
+            hideLauncherWindow()
+            return
+        }
+
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        focusActiveInput()
+    }
+
+    private func hideLauncherWindow() {
+        guard let window = NSApplication.shared.windows.first else { return }
+        window.orderOut(nil)
+        NSApplication.shared.hide(nil)
+    }
+
+    private func handleTranslation(text: String) {
+        let result = bridge.translate(text: text)
+        if let translated = result?.translated, !translated.isEmpty {
+            showBanner(
+                "\(text) -> \(translated)",
+                style: .success,
+                copyText: translated,
+                duration: 4.5
+            )
+            return
+        }
+
+        let message = result?.error?.message ?? "Translation failed"
+        showBanner(message, style: .error, duration: 3.2)
+    }
+
+    private func showBanner(
+        _ message: String,
+        style: BannerStyle = .info,
+        copyText: String? = nil,
+        duration: Double = 1.8
+    ) {
         bannerTask?.cancel()
+        bannerStyle = style
+        bannerCopyText = copyText
         withAnimation(.easeOut(duration: 0.15)) {
             bannerMessage = message
         }
 
         bannerTask = Task {
-            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            let ns = UInt64(max(0.6, duration) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: ns)
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 withAnimation(.easeIn(duration: 0.15)) {
                     bannerMessage = nil
+                    bannerCopyText = nil
                 }
             }
         }
@@ -503,12 +556,26 @@ struct LauncherView: View {
                     )
 
                     if let bannerMessage {
-                        Text(bannerMessage)
-                            .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
-                            .foregroundStyle(themeStore.fontColor())
+                        HStack(spacing: 8) {
+                            Text(bannerMessage)
+                                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
+                                .foregroundStyle(themeStore.fontColor())
+                            if let copyText = bannerCopyText {
+                                Button("Copy") {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(copyText, forType: .string)
+                                    showBanner("Copied", style: .info, duration: 1.0)
+                                }
+                                .buttonStyle(.plain)
+                                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .semibold))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(.white.opacity(0.18), in: Capsule())
+                            }
+                        }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(.green.opacity(0.42), in: Capsule())
+                            .background(bannerStyle.background, in: Capsule())
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
@@ -607,12 +674,6 @@ struct LauncherView: View {
             keyboardMonitor.stop()
         }
         .onChange(of: query) { _, _ in
-            if !isCommandMode && query.hasPrefix("/") {
-                query = ""
-                enterCommandMode()
-                return
-            }
-
             if !isCommandMode {
                 refreshSearchResults()
             }
@@ -643,19 +704,27 @@ struct LauncherView: View {
                 isQueryFocused = true
             }
         }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
+        ) { _ in
+            if !appUIState.showsThemeSettings {
+                hideLauncherWindow()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .lookReloadConfigRequested)) { _ in
             reloadConfig()
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookRefocusInputRequested)) { _ in
             focusActiveInput()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .lookToggleWindowRequested)) { _ in
+            toggleWindowVisibility()
+        }
     }
 
     @ViewBuilder
     private var themedBackground: some View {
-        if let url = themeStore.backgroundImageURL,
-            let image = NSImage(contentsOf: url)
-        {
+        if let image = themeStore.backgroundImage {
             backgroundImageView(image: image)
                 .blur(radius: themeStore.settings.backgroundImageBlur)
                 .opacity(themeStore.settings.backgroundImageOpacity)
@@ -725,8 +794,13 @@ struct LauncherView: View {
         keyboardMonitor.start(
             onNext: { moveSelection(.down, shouldAutocompleteCommand: true) },
             onPrevious: { moveSelection(.up, shouldAutocompleteCommand: true) },
+            onEnterCommandMode: {
+                if !isCommandMode {
+                    enterCommandMode()
+                }
+            },
             onExitCommandMode: {
-                exitCommandMode()
+                hideLauncherWindow()
             },
             onBackToCommandList: { [self] in
                 pendingKillApp = nil

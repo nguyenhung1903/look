@@ -41,11 +41,17 @@ Core Engine (Rust)
 
 ## Command mode
 
-- `/` enters command mode
+- `Cmd+/` enters command mode
 - command mode currently supports `calc` and `shell`
 - `calc` supports live result preview and 4-decimal formatted output
 - `shell` executes command text and returns stdout/stderr summary
 - shell commands containing `sudo` trigger an orange warning border
+
+## Window behavior
+
+- global hotkey `Cmd+Space` toggles launcher visibility (when not intercepted by Spotlight)
+- `Escape` hides launcher
+- launcher auto-hides on focus loss
 
 ## Settings panel
 

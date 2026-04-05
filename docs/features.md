@@ -30,7 +30,7 @@ This page defines the near-term feature scope for `look` and how each feature ma
 
 ### Current
 
-- `/` to enter command mode
+- `Cmd+/` to enter command mode
 - `calc` and `shell`
 - live calculator preview
 

@@ -12,13 +12,17 @@ pub const APP_EXCLUDE_PATHS: [&str; 0] = [];
 pub const APP_EXCLUDE_NAMES: [&str; 0] = [];
 
 pub const FILE_SCAN_ROOT_SUFFIXES: [&str; 3] = ["Desktop", "Documents", "Downloads"];
-pub const FILE_SCAN_DEPTH: usize = 2;
-pub const FILE_SCAN_LIMIT: usize = 2000;
+pub const FILE_SCAN_DEPTH: usize = 4;
+pub const FILE_SCAN_LIMIT: usize = 8000;
 pub const FILE_EXCLUDE_PATHS: [&str; 0] = [];
 
 pub const SCORE_TITLE_CONTAINS: i64 = 1200;
 pub const SCORE_SUBTITLE_CONTAINS: i64 = 900;
 pub const SCORE_TOKEN_ALL_MATCH: i64 = 850;
+pub const SCORE_REGEX_TITLE_AND_PATH: i64 = 1500;
+pub const SCORE_REGEX_TITLE_ONLY: i64 = 1300;
+pub const SCORE_REGEX_PATH_ONLY: i64 = 1100;
+pub const SCORE_REGEX_SUBTITLE_ONLY: i64 = 1000;
 
 pub const BIAS_APP: i64 = 220;
 pub const BIAS_FOLDER: i64 = 0;
@@ -214,8 +218,8 @@ app_scan_depth=3\n\
 app_exclude_paths=\n\
 app_exclude_names=\n\
 file_scan_roots=Desktop,Documents,Downloads\n\
-file_scan_depth=2\n\
-file_scan_limit=2000\n\
+file_scan_depth=4\n\
+file_scan_limit=8000\n\
 file_exclude_paths=\n\
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data\n\
 \n\

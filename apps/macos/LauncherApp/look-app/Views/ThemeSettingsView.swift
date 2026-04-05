@@ -55,7 +55,7 @@ struct ThemeSettingsView: View {
 
             HStack(spacing: 8) {
                 tabButton(title: "Appearance", index: 0)
-                tabButton(title: "Background", index: 1)
+                tabButton(title: "Advanced", index: 1)
                 tabButton(title: "Shortcuts", index: 2)
             }
 
@@ -262,51 +262,151 @@ struct ThemeSettingsView: View {
     }
 
     private var backgroundTab: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Button("Choose Background Image") {
-                        selectBackgroundImage()
-                    }
-                    if settings.backgroundImagePath != nil {
-                        Button("Clear") {
-                            themeStore.setBackgroundImage(url: nil)
+        VStack(alignment: .leading, spacing: 10) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Background")
+                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+
+                    HStack {
+                        Button("Choose Background Image") {
+                            selectBackgroundImage()
+                        }
+                        if settings.backgroundImagePath != nil {
+                            Button("Clear") {
+                                themeStore.setBackgroundImage(url: nil)
+                            }
                         }
                     }
-                }
 
-                Text(settings.backgroundImagePath ?? "No image selected")
-                    .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
-                    .lineLimit(1)
-
-                HStack(spacing: 10) {
-                    Text("Image Layout")
-                        .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
+                    Text(settings.backgroundImagePath ?? "No image selected")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                        .lineLimit(1)
 
-                    Picker("Image Layout", selection: $settings.backgroundImageMode) {
-                        ForEach(BackgroundImageMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
+                    HStack(spacing: 10) {
+                        Text("Image Layout")
+                            .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            .foregroundStyle(.secondary)
+
+                        Picker("Image Layout", selection: $settings.backgroundImageMode) {
+                            ForEach(BackgroundImageMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: AppConstants.ThemeUI.pickerWidth)
+
+                        Text(settings.backgroundImageMode.detail)
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    LabeledSlider(title: "Image Opacity", value: $settings.backgroundImageOpacity, range: 0...1)
+                    LabeledSlider(title: "Image Blur", value: $settings.backgroundImageBlur, range: 0...30)
+
+                    Divider()
+                        .overlay(.white.opacity(0.1))
+                        .padding(.vertical, 4)
+
+                    Text("Indexing")
+                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+
+                    HStack(spacing: 10) {
+                        Text("File Scan Depth")
+                            .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            .foregroundStyle(.secondary)
+
+                        Stepper(value: $settings.fileScanDepth, in: 1...12) {
+                            Text("\(settings.fileScanDepth)")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                                .frame(width: 50, alignment: .leading)
+                        }
+                        .frame(width: 190, alignment: .leading)
+
+                        Text("How many directory levels to index")
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    HStack(spacing: 10) {
+                        Text("File Scan Limit")
+                            .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            .foregroundStyle(.secondary)
+
+                        Stepper(value: $settings.fileScanLimit, in: 500...50000, step: 500) {
+                            Text("\(settings.fileScanLimit)")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                                .frame(width: 70, alignment: .leading)
+                        }
+                        .frame(width: 220, alignment: .leading)
+
+                        Text("Max files indexed per refresh")
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Divider()
+                        .overlay(.white.opacity(0.1))
+                        .padding(.vertical, 4)
+
+                    Text("Privacy & Logs")
+                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+
+                    Toggle(isOn: $settings.translateAllowNetwork) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Enable network translation")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            Text("Allow t\"... to send text to translation API")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
                         }
                     }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: AppConstants.ThemeUI.pickerWidth)
 
-                    Text(settings.backgroundImageMode.detail)
-                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 10) {
+                        Text("Backend Log Level")
+                            .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            .foregroundStyle(.secondary)
+
+                        Picker("Backend Log Level", selection: $settings.backendLogLevel) {
+                            ForEach(BackendLogLevel.allCases) { level in
+                                Text(level.title).tag(level)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: AppConstants.ThemeUI.pickerWidth)
+
+                        Text("Error only by default; use Info/Debug for troubleshooting")
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
-
-                LabeledSlider(title: "Image Opacity", value: $settings.backgroundImageOpacity, range: 0...1)
-                LabeledSlider(title: "Image Blur", value: $settings.backgroundImageBlur, range: 0...30)
             }
+            .scrollIndicators(.hidden)
+
+            Spacer(minLength: 0)
+
+            Text(HintText.Settings.advancedApply)
+                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
         }
-        .scrollIndicators(.hidden)
     }
 
     private var shortcutsTab: some View {
@@ -319,8 +419,8 @@ struct ThemeSettingsView: View {
                         ShortcutItem(keys: "Shift+Tab", action: "Select previous result"),
                         ShortcutItem(keys: "Up / Down", action: "Move selection"),
                         ShortcutItem(keys: "Cmd+Enter", action: "Search query on Google"),
-                        ShortcutItem(keys: "/", action: "Enter command mode"),
-                        ShortcutItem(keys: "Shift+Esc", action: "Exit command mode"),
+                        ShortcutItem(keys: "Cmd+/", action: "Enter command mode"),
+                        ShortcutItem(keys: "Esc", action: "Hide launcher"),
                     ]
                 )
 
@@ -346,7 +446,7 @@ struct ThemeSettingsView: View {
                     title: "Theme controls",
                     items: [
                         ShortcutItem(keys: "Appearance tab", action: "Tint, blur material, blur opacity"),
-                        ShortcutItem(keys: "Background tab", action: "Image select, image opacity, image blur"),
+                        ShortcutItem(keys: "Advanced tab", action: "Background, indexing, privacy, logging controls"),
                         ShortcutItem(keys: "Shortcuts tab", action: "In-app keyboard documentation"),
                     ]
                 )
@@ -355,7 +455,7 @@ struct ThemeSettingsView: View {
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                     .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
 
-                Text("Tips: t\"word to translate | /kill to force quit apps | app_exclude_* to hide from search")
+                Text(HintText.Settings.shortcutsTips)
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                     .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
             }

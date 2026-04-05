@@ -11,6 +11,11 @@ import SwiftUI
 struct look_appApp: App {
     @StateObject private var appUIState = AppUIState()
     @StateObject private var themeStore = ThemeStore()
+    private let hotKeyManager = GlobalHotKeyManager()
+
+    init() {
+        hotKeyManager.registerToggleHotKey()
+    }
 
     var body: some Scene {
         WindowGroup {

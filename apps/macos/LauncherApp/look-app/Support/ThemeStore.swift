@@ -5,6 +5,7 @@ import AppKit
 
 final class ThemeStore: ObservableObject {
     @Published private(set) var backgroundImageURL: URL?
+    @Published private(set) var backgroundImage: NSImage?
     @Published var uiScale: CGFloat = 1.0
 
     @Published var settings: ThemeSettings {
@@ -79,6 +80,10 @@ final class ThemeStore: ObservableObject {
         upsertConfigLine(&lines, key: "ui_border_green", value: String(format: "%.2f", settings.borderGreen))
         upsertConfigLine(&lines, key: "ui_border_blue", value: String(format: "%.2f", settings.borderBlue))
         upsertConfigLine(&lines, key: "ui_border_opacity", value: String(format: "%.2f", settings.borderOpacity))
+        upsertConfigLine(&lines, key: "file_scan_depth", value: String(settings.fileScanDepth))
+        upsertConfigLine(&lines, key: "file_scan_limit", value: String(settings.fileScanLimit))
+        upsertConfigLine(&lines, key: "translate_allow_network", value: settings.translateAllowNetwork ? "true" : "false")
+        upsertConfigLine(&lines, key: "backend_log_level", value: settings.backendLogLevel.rawValue)
 
         let payload = lines.joined(separator: "\n") + "\n"
         do {
@@ -257,6 +262,22 @@ final class ThemeStore: ObservableObject {
                 if let parsed = parseUnitDouble(value) {
                     settings.borderOpacity = parsed
                 }
+            case "file_scan_depth":
+                if let parsed = parsePositiveInt(value) {
+                    settings.fileScanDepth = parsed
+                }
+            case "file_scan_limit":
+                if let parsed = parsePositiveInt(value) {
+                    settings.fileScanLimit = parsed
+                }
+            case "translate_allow_network":
+                if let parsed = parseBool(value) {
+                    settings.translateAllowNetwork = parsed
+                }
+            case "backend_log_level":
+                if let parsed = parseBackendLogLevel(value) {
+                    settings.backendLogLevel = parsed
+                }
             default:
                 continue
             }
@@ -302,6 +323,28 @@ final class ThemeStore: ObservableObject {
             return nil
         }
         return parsed
+    }
+
+    private func parsePositiveInt(_ value: String) -> Int? {
+        guard let parsed = Int(value), parsed > 0 else {
+            return nil
+        }
+        return parsed
+    }
+
+    private func parseBool(_ value: String) -> Bool? {
+        switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "1", "true", "yes", "on":
+            return true
+        case "0", "false", "no", "off":
+            return false
+        default:
+            return nil
+        }
+    }
+
+    private func parseBackendLogLevel(_ value: String) -> BackendLogLevel? {
+        BackendLogLevel(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
     }
 
     private func parseBlurMaterial(_ value: String) -> LauncherBlurMaterial? {
@@ -376,9 +419,11 @@ app_scan_depth=3
 app_exclude_paths=
 app_exclude_names=
 file_scan_roots=Desktop,Documents,Downloads
-file_scan_depth=2
-file_scan_limit=2000
+file_scan_depth=4
+file_scan_limit=8000
 file_exclude_paths=
+translate_allow_network=false
+backend_log_level=error
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
 
 # UI theme
@@ -405,6 +450,7 @@ ui_border_opacity=0.12
         scopedBackgroundURL?.stopAccessingSecurityScopedResource()
         scopedBackgroundURL = nil
         backgroundImageURL = nil
+        backgroundImage = nil
 
         if let bookmark = settings.backgroundImageBookmark {
             var isStale = false
@@ -417,12 +463,15 @@ ui_border_opacity=0.12
                 _ = resolved.startAccessingSecurityScopedResource()
                 scopedBackgroundURL = resolved
                 backgroundImageURL = resolved
+                backgroundImage = NSImage(contentsOf: resolved)
                 return
             }
         }
 
         if let path = settings.backgroundImagePath {
-            backgroundImageURL = URL(fileURLWithPath: path)
+            let url = URL(fileURLWithPath: path)
+            backgroundImageURL = url
+            backgroundImage = NSImage(contentsOf: url)
         }
     }
 }

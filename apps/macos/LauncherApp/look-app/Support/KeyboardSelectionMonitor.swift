@@ -8,6 +8,7 @@ final class KeyboardSelectionMonitor {
     func start(
         onNext: @escaping () -> Void,
         onPrevious: @escaping () -> Void,
+        onEnterCommandMode: @escaping () -> Void,
         onExitCommandMode: @escaping () -> Void,
         onBackToCommandList: @escaping () -> Void,
         onWebSearch: @escaping () -> Void,
@@ -20,12 +21,23 @@ final class KeyboardSelectionMonitor {
         self.isKillConfirmationActive = killConfirmationActive
 
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 36 && event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.shift) {
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+            if event.modifierFlags.contains(.command)
+                && !event.modifierFlags.contains(.control)
+                && !event.modifierFlags.contains(.option)
+                && event.charactersIgnoringModifiers == "/"
+            {
+                onEnterCommandMode()
+                return nil
+            }
+
+            if (event.keyCode == 36 || event.keyCode == 76) && flags == [.command] {
                 onWebSearch()
                 return nil
             }
 
-            if event.keyCode == 36 && event.modifierFlags.contains(.command) && event.modifierFlags.contains(.shift) {
+            if (event.keyCode == 36 || event.keyCode == 76) && flags == [.command, .shift] {
                 onSelectCommandByIndex(1)
                 return nil
             }

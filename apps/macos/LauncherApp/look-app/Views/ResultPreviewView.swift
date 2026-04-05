@@ -6,6 +6,12 @@ struct ResultPreviewView: View {
     let result: LauncherResult
 
     private let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic", "webp", "svg", "ico", "pdf"]
+    private static let modifiedDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     private var isImageFile: Bool {
         let ext = (result.path as NSString).pathExtension.lowercased()
@@ -46,21 +52,10 @@ struct ResultPreviewView: View {
 
             if let attrs = try? FileManager.default.attributesOfItem(atPath: appPath) {
                 if let modDate = attrs[.modificationDate] as? Date {
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .medium
-                    formatter.timeStyle = .short
-                    modified = formatter.string(from: modDate)
+                    modified = Self.modifiedDateFormatter.string(from: modDate)
                 }
-            }
-
-            if let enumerator = FileManager.default.enumerator(atPath: appPath) {
-                while let file = enumerator.nextObject() as? String {
-                    let fullPath = (appPath as NSString).appendingPathComponent(file)
-                    if let attrs = try? FileManager.default.attributesOfItem(atPath: fullPath) {
-                        if let size = attrs[.size] as? Int64 {
-                            totalSize += size
-                        }
-                    }
+                if let size = attrs[.size] as? Int64 {
+                    totalSize = size
                 }
             }
         } else {
@@ -69,10 +64,7 @@ struct ResultPreviewView: View {
                     totalSize = size
                 }
                 if let modDate = attrs[.modificationDate] as? Date {
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .medium
-                    formatter.timeStyle = .short
-                    modified = formatter.string(from: modDate)
+                    modified = Self.modifiedDateFormatter.string(from: modDate)
                 }
             }
         }
@@ -88,6 +80,8 @@ struct ResultPreviewView: View {
     }
 
     var body: some View {
+        let info = bundleInfo
+
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 Image(nsImage: largeIcon)
@@ -103,7 +97,7 @@ struct ResultPreviewView: View {
 
                     HStack(spacing: 6) {
                         KindBadge(kind: result.kind.rawValue)
-                        Text(bundleInfo.size)
+                        Text(info.size)
                             .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
                             .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
                     }
@@ -123,7 +117,7 @@ struct ResultPreviewView: View {
                 }
             }
 
-            if let version = bundleInfo.version {
+            if let version = info.version {
                 InfoRow(label: "Version", value: version)
             }
 
@@ -139,7 +133,7 @@ struct ResultPreviewView: View {
                     .lineLimit(3)
             }
 
-            if let modified = bundleInfo.modified {
+            if let modified = info.modified {
                 InfoRow(label: "Modified", value: modified)
             }
 

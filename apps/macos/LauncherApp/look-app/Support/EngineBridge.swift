@@ -45,6 +45,10 @@ final class EngineBridge {
             return fallbackResults()
         }
 
+        if payload.error != nil {
+            return fallbackResults()
+        }
+
         return payload.results.map {
             LauncherResult(
                 id: $0.id,
@@ -100,13 +104,19 @@ final class EngineBridge {
 struct TranslationResult: Decodable {
     let original: String
     let translated: String
-    let error: String?
+    let error: BridgeError?
 }
 
 private nonisolated struct SearchPayload: Decodable {
     let query: String
     let count: Int
     let results: [SearchItem]
+    let error: BridgeError?
+}
+
+struct BridgeError: Decodable {
+    let code: String
+    let message: String
 }
 
 private nonisolated struct SearchItem: Decodable {

@@ -1,4 +1,4 @@
-# ADR 0004: Slash command mode in launcher UI
+# ADR 0004: Keyboard command mode in launcher UI
 
 ## Status
 
@@ -10,11 +10,11 @@ Users want quick utility actions (math and shell) without leaving the launcher f
 
 ## Decision
 
-- Use `/` to enter command mode.
+- Use `Cmd+/` to enter command mode.
 - Default selected command is `calc`.
 - Support command switching with `Tab` / `Shift+Tab`.
 - Keep command input when switching command type.
-- Exit command mode with `Shift+Esc`.
+- `Esc` hides launcher (Spotlight-like behavior).
 
 ## Consequences
 

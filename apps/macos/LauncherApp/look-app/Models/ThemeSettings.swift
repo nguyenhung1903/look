@@ -82,6 +82,22 @@ enum BackgroundImageMode: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+enum BackendLogLevel: String, CaseIterable, Codable, Identifiable {
+    case error
+    case info
+    case debug
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .error: return "Error"
+        case .info: return "Info"
+        case .debug: return "Debug"
+        }
+    }
+}
+
 struct ThemeSettings: Codable {
     var tintRed: Double = 0.08
     var tintGreen: Double = 0.10
@@ -105,6 +121,10 @@ struct ThemeSettings: Codable {
     var backgroundImageMode: BackgroundImageMode = .fill
     var backgroundImageOpacity: Double = 0.35
     var backgroundImageBlur: Double = 8
+    var fileScanDepth: Int = 4
+    var fileScanLimit: Int = 8000
+    var translateAllowNetwork: Bool = false
+    var backendLogLevel: BackendLogLevel = .error
 
     static let `default` = ThemeSettings()
 }

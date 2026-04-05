@@ -2,6 +2,26 @@
 
 This is the execution breakdown for the next backend-focused milestone.
 
+## Priority queue (current)
+
+Now:
+
+- [x] benchmark query latency and indexing throughput
+- [x] collect first dated baseline note in `docs/bench-notes/YYYY-MM-DD.md`
+- [x] add diagnostics/debug toggles for development
+
+Next:
+
+- [x] add ffi-level smoke tests for `look_search_json` and `look_record_usage`
+- [x] add structured error mapping for UI feedback
+- [ ] route settings updates to backend persistence
+
+Later:
+
+- [ ] add in-memory cache for top-N results
+- [ ] add result pagination/streaming for large result sets (optional)
+- [ ] Homebrew release packaging
+
 ## Milestone A: Storage foundation (SQLite)
 
 - [x] add `core/storage` SQLite layer and connection manager
@@ -33,9 +53,9 @@ This is the execution breakdown for the next backend-focused milestone.
 - [x] wire action execution path (open app/path/web, run command)
 - [x] translate text via FFI (`t"word` + Enter)
 - [x] command mode with `calc`, `shell`, `kill` commands
-- [x] command keyboard shortcuts (Cmd+1/2/3, Tab, Esc, Cmd+Esc)
+- [x] command keyboard shortcuts (Cmd+/, Cmd+1/2/3, Tab, Esc hide, Cmd+Esc)
 - [ ] route settings updates to backend persistence
-- [ ] add structured error mapping for UI feedback
+- [x] add structured error mapping for UI feedback
 
 ## Milestone E: Ranking and safety
 
@@ -43,26 +63,26 @@ This is the execution breakdown for the next backend-focused milestone.
 - [x] implement recency/frequency score boost
 - [x] apply shell safety policy (`sudo` warning, confirm mode option)
 - [x] add numeric guardrails for calc
-- [ ] add tests for scoring and safety rules
+- [x] add tests for scoring and safety rules (scoring coverage added)
 
 ## Milestone F: Performance and polish
 
-- [ ] benchmark query latency and indexing throughput
+- [x] benchmark query latency and indexing throughput
 - [ ] add in-memory cache for top-N results
-- [ ] optimize startup path and background index scheduling
-- [ ] add diagnostics/debug toggles for development
+- [x] optimize startup path and background index scheduling
+- [x] add diagnostics/debug toggles for development
 - [ ] update docs and user guide for finalized behavior
 
 ## Milestone G: Reliability (errors, tests, logs)
 
 - [ ] add structured error model across engine/storage/ffi boundaries
 - [ ] add safe user-facing fallback messages for action failures
-- [ ] add unit tests for search scoring and empty-query top-picks behavior
+- [x] add unit tests for search scoring and empty-query top-picks behavior
 - [ ] add unit tests for curated settings catalog integrity (id/title/target validity)
 - [x] add storage tests for usage-event writes and candidate upsert semantics
-- [ ] add ffi-level smoke tests for `look_search_json` and `look_record_usage`
-- [ ] add debug logging hooks (startup indexing summary, query timing, action execution outcome)
-- [ ] add a log-level toggle (`error`/`info`/`debug`) via env var for local troubleshooting
+- [x] add ffi-level smoke tests for `look_search_json` and `look_record_usage`
+- [x] add debug logging hooks (startup indexing summary, query timing, action execution outcome)
+- [x] add a log-level toggle (`error`/`info`/`debug`) via env var for local troubleshooting
 
 ## Backlog: UI Enhancements
 
