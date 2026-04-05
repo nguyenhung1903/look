@@ -138,3 +138,33 @@ jobs:
           files: |
             dist/Look-${{ steps.version.outputs.version }}-macOS.zip
             dist/Look-${{ steps.version.outputs.version }}-manifest.txt
+
+      - name: Release security summary
+        if: always()
+        env:
+          APPLE_DEVELOPER_ID_CERT_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERT_BASE64 }}
+          APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
+        run: |
+          SIGNING_READY="false"
+          NOTARY_READY="false"
+
+          if [[ -n "${APPLE_DEVELOPER_ID_CERT_BASE64}" && -n "${APPLE_DEVELOPER_ID_APPLICATION}" ]]; then
+            SIGNING_READY="true"
+          fi
+
+          if [[ -n "${APPLE_NOTARY_APPLE_ID}" && -n "${APPLE_NOTARY_APP_PASSWORD}" && -n "${APPLE_NOTARY_TEAM_ID}" ]]; then
+            NOTARY_READY="true"
+          fi
+
+          {
+            echo "## Release Security Summary"
+            echo "- Codesign configured: ${SIGNING_READY}"
+            echo "- Notarization configured: ${NOTARY_READY}"
+            if [[ "${SIGNING_READY}" != "true" || "${NOTARY_READY}" != "true" ]]; then
+              echo "- This release is likely unsigned and/or not notarized."
+              echo "- Users may need first-run Gatekeeper bypass (Open Anyway / right-click Open)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

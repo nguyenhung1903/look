@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct look_appApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appUIState = AppUIState()
     @StateObject private var themeStore = ThemeStore()
     private let hotKeyManager = GlobalHotKeyManager()
@@ -25,6 +26,7 @@ struct look_appApp: App {
                 .environmentObject(appUIState)
                 .environmentObject(themeStore)
         }
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(after: .appSettings) {
                 Button("Theme Settings") {

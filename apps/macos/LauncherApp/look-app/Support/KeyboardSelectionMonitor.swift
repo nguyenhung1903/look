@@ -10,6 +10,8 @@ final class KeyboardSelectionMonitor {
         onPrevious: @escaping () -> Void,
         onEnterCommandMode: @escaping () -> Void,
         onExitCommandMode: @escaping () -> Void,
+        onHideLauncher: @escaping () -> Void,
+        inCommandMode: @escaping () -> Bool,
         onBackToCommandList: @escaping () -> Void,
         onWebSearch: @escaping () -> Void,
         onSelectCommandByIndex: @escaping (Int) -> Void,
@@ -23,10 +25,12 @@ final class KeyboardSelectionMonitor {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
-            if event.modifierFlags.contains(.command)
-                && !event.modifierFlags.contains(.control)
-                && !event.modifierFlags.contains(.option)
-                && event.charactersIgnoringModifiers == "/"
+            if flags.contains(.command)
+                && !flags.contains(.control)
+                && !flags.contains(.option)
+                && (event.keyCode == 44
+                    || event.charactersIgnoringModifiers == "/"
+                    || event.charactersIgnoringModifiers == "?")
             {
                 onEnterCommandMode()
                 return nil
@@ -68,7 +72,16 @@ final class KeyboardSelectionMonitor {
                     onCancelKill?()
                     return nil
                 }
-                onExitCommandMode()
+
+                if inCommandMode() {
+                    if flags.contains(.shift) {
+                        onHideLauncher()
+                    } else {
+                        onExitCommandMode()
+                    }
+                } else {
+                    onHideLauncher()
+                }
                 return nil
             }
 

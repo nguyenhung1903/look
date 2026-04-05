@@ -465,9 +465,51 @@ struct LauncherView: View {
             return
         }
 
-        DispatchQueue.main.async {
-            isQueryFocused = true
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        scheduleFocusRecovery(delays: [0.0, 0.04, 0.12])
+    }
+
+    private func scheduleFocusRecovery(delays: [Double]) {
+        for delay in delays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard !appUIState.showsThemeSettings else { return }
+                guard let window = NSApplication.shared.windows.first else { return }
+
+                if !window.isVisible {
+                    window.makeKeyAndOrderFront(nil)
+                } else {
+                    window.makeKey()
+                    window.orderFrontRegardless()
+                }
+
+                if let responder = findEditableTextField(in: window.contentView) {
+                    window.makeFirstResponder(responder)
+                }
+
+                isQueryFocused = false
+                isQueryFocused = true
+            }
         }
+    }
+
+    private func findEditableTextField(in view: NSView?) -> NSView? {
+        guard let view else { return nil }
+
+        if let textField = view as? NSTextField,
+            textField.isEditable,
+            !textField.isHidden,
+            textField.alphaValue > 0.01
+        {
+            return textField
+        }
+
+        for subview in view.subviews {
+            if let found = findEditableTextField(in: subview) {
+                return found
+            }
+        }
+
+        return nil
     }
 
     private func toggleWindowVisibility() {
@@ -486,7 +528,6 @@ struct LauncherView: View {
     private func hideLauncherWindow() {
         guard let window = NSApplication.shared.windows.first else { return }
         window.orderOut(nil)
-        NSApplication.shared.hide(nil)
     }
 
     private func handleTranslation(text: String) {
@@ -653,6 +694,10 @@ struct LauncherView: View {
             .font(themeStore.uiFont())
             .foregroundStyle(themeStore.fontColor())
             .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusActiveInput()
+            }
         }
         .background(Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -664,9 +709,7 @@ struct LauncherView: View {
         .onAppear {
             refreshSearchResults()
             startKeyboardNavigationIfNeeded()
-            DispatchQueue.main.async {
-                isQueryFocused = true
-            }
+            focusActiveInput()
         }
         .onDisappear {
             searchTask?.cancel()
@@ -689,9 +732,7 @@ struct LauncherView: View {
                 NotificationCenter.default.post(name: .lookFocusSettingsInputRequested, object: nil)
             } else {
                 startKeyboardNavigationIfNeeded()
-                DispatchQueue.main.async {
-                    isQueryFocused = true
-                }
+                focusActiveInput()
             }
         }
         .onMoveCommand { direction in
@@ -700,9 +741,7 @@ struct LauncherView: View {
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
         ) { _ in
-            DispatchQueue.main.async {
-                isQueryFocused = true
-            }
+            focusActiveInput()
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
@@ -800,8 +839,12 @@ struct LauncherView: View {
                 }
             },
             onExitCommandMode: {
+                exitCommandMode()
+            },
+            onHideLauncher: {
                 hideLauncherWindow()
             },
+            inCommandMode: { isCommandMode },
             onBackToCommandList: { [self] in
                 pendingKillApp = nil
                 selectedKillSuggestionIndex = nil

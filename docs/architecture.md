@@ -46,18 +46,20 @@ Core Engine (Rust)
 - `calc` supports live result preview and 4-decimal formatted output
 - `shell` executes command text and returns stdout/stderr summary
 - shell commands containing `sudo` trigger an orange warning border
+- `Esc` exits command mode back to app/file list
+- `Shift+Esc` hides launcher window
 
 ## Window behavior
 
 - global hotkey `Cmd+Space` toggles launcher visibility (when not intercepted by Spotlight)
-- `Escape` hides launcher
+- `Escape` hides launcher when not in command mode
 - launcher auto-hides on focus loss
 
 ## Settings panel
 
 - `Cmd+Shift+,` toggles in-app settings/docs panel
 - appearance controls: tint color, blur style, blur opacity
-- background controls: image source, image layout mode, image blur/opacity
+- advanced controls: background image, indexing depth/limit, translation network privacy, backend log level
 - settings are persisted locally
 
 ## Query pipeline

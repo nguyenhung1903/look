@@ -20,6 +20,8 @@ This page defines the near-term feature scope for `look` and how each feature ma
 - settings panel and theme customization
 - SQLite-backed candidate persistence and usage tracking
 - dynamic app/settings/file indexing from backend sources
+- query prefixes: `a"` apps, `f"` files, `d"` folders, `r"` regex
+- slash-path query bias (example: `git/books-pc`)
 
 ### Next
 
@@ -33,6 +35,8 @@ This page defines the near-term feature scope for `look` and how each feature ma
 - `Cmd+/` to enter command mode
 - `calc` and `shell`
 - live calculator preview
+- `Esc` exits command mode to app list
+- `Shift+Esc` hides launcher
 
 ### Next
 
@@ -52,7 +56,8 @@ This page defines the near-term feature scope for `look` and how each feature ma
 
 ### Current
 
-- theme settings persisted in app storage
+- settings persisted to `~/.look.config`
+- advanced controls for indexing, translation privacy, and backend log level
 
 ### Next
 

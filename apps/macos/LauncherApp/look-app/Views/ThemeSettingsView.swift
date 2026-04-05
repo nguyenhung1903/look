@@ -420,7 +420,8 @@ struct ThemeSettingsView: View {
                         ShortcutItem(keys: "Up / Down", action: "Move selection"),
                         ShortcutItem(keys: "Cmd+Enter", action: "Search query on Google"),
                         ShortcutItem(keys: "Cmd+/", action: "Enter command mode"),
-                        ShortcutItem(keys: "Esc", action: "Hide launcher"),
+                        ShortcutItem(keys: "Esc", action: "Back to app list (in command mode)"),
+                        ShortcutItem(keys: "Shift+Esc", action: "Hide launcher"),
                     ]
                 )
 

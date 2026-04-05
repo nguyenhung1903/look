@@ -12,12 +12,21 @@ The interface is local-first, lightweight, and designed for low-friction daily u
 
 ## Installation
 
+Compatibility:
+
+- currently targets macOS `15.0+`
+
 ### Homebrew tap (recommended once release is published)
 
 ```bash
 brew tap kunkka19xx/tap
 brew install --cask look
 ```
+
+Unsigned release behavior:
+
+- if the distributed app is not Developer ID signed/notarized, macOS may block first launch
+- open once via Finder with right-click `Open` and confirm, or use `System Settings` -> `Privacy & Security` -> `Open Anyway`
 
 ### Curl installer
 
@@ -30,6 +39,11 @@ curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/instal
 - choose version: `--version <version>` or env `LOOK_VERSION=<version>`
 - choose repository: `--repo kunkka19xx/look` or env `LOOK_REPO=kunkka19xx/look`
 - use a direct zip URL: `--url <release-zip-url>` or env `LOOK_DOWNLOAD_URL=<release-zip-url>`
+
+Signing and notarization (optional):
+
+- requires paid Apple Developer Program membership
+- when not configured, look can still be installed and used (with first-run Gatekeeper confirmation)
 
 Install target:
 
@@ -101,12 +115,13 @@ In command mode:
 - `Tab` switches to next command
 - `Cmd+1` / `Cmd+2` / `Cmd+3` selects command directly
 - `Enter` runs the current command input
-- `Escape` hides launcher
+- `Escape` exits command mode back to app list
+- `Shift+Escape` hides launcher
 - `Cmd+Escape` returns to command list on `calc`
 
 Spotlight-style behavior:
 
-- launcher hides on `Escape`
+- launcher hides on `Escape` from normal app/file list
 - launcher also hides automatically when app loses focus
 
 Available commands:
@@ -268,7 +283,8 @@ ui_border_opacity=0.12
 - `d"`: folders-only search prefix
 - `r"`: regex search prefix
 - `Cmd+/`: enter command mode
-- `Escape`: hide launcher
+- `Escape`: back to app list (in command mode), otherwise hide launcher
+- `Shift+Escape`: hide launcher
 - `Cmd+Enter`: search query on Google
 - `Cmd+Escape`: back to command list (`calc`) while staying in command mode
 - `Cmd+Shift+,`: open/close settings panel

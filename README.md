@@ -47,6 +47,7 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - FFI bridge crate is initialized under `bridge/ffi/`.
 - Architecture, roadmap, and initial design decisions are documented under `docs/`.
 - UI currently includes: borderless launcher window, theme/settings panel, command mode, and keyboard-first navigation.
+ - UI currently includes: spotlight-style launcher window, theme/settings panel, command mode, and keyboard-first navigation.
 - Backend currently includes: SQLite-backed candidate storage, dynamic app/settings/file indexing, and usage event logging.
 - User-facing guide: `docs/user-guide.md`.
 - Backend contributor guide: `docs/backend-guide.md`.
@@ -57,13 +58,15 @@ Indexing config supports include roots plus exclude rules for both apps and file
 
 - `Tab`: next result or next command
 - `Up` / `Down`: navigate app list (in kill command)
-- `/`: enter command mode (defaults to `calc`)
-- `Escape`: exit command mode
+- `Cmd+/`: enter command mode (defaults to `calc`)
+- `Escape`: back to app list (when in command mode), otherwise hide launcher
+- `Shift+Escape`: hide launcher
 - `Cmd+1` / `Cmd+2` / `Cmd+3`: switch command directly
 - `Cmd+Esc`: back to command list (`calc`) while staying in command mode
 - `Enter`: launch selected app, execute active command, translate (if `t"...`), or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
+- `a"` / `f"` / `d"` / `r"`: apps/files/folders/regex scoped query prefix
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
 - `Cmd+-`, `Cmd+=`, `Cmd+0`: temporary UI zoom out/in/reset
@@ -76,6 +79,11 @@ Homebrew tap (recommended once release is published):
 brew tap kunkka19xx/tap
 brew install --cask look
 ```
+
+Unsigned release note:
+
+- if the app is not Developer ID signed/notarized, macOS Gatekeeper may block first launch
+- first-run bypass: right-click `Look.app` -> `Open` -> confirm, or use `System Settings` -> `Privacy & Security` -> `Open Anyway`
 
 Curl installer (after a GitHub release exists):
 
@@ -99,7 +107,7 @@ curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/instal
 
 Prerequisites:
 
-- macOS
+- macOS 15.0+
 - Xcode (for app shell)
 - Rust stable toolchain (for core engine)
 
@@ -123,6 +131,11 @@ Prepare release artifacts/scripts (maintainers):
 ./scripts/build-release.sh 1.0.0
 ./scripts/generate-homebrew-cask.sh 1.0.0 <sha256> kunkka19xx/look
 ```
+
+Signing/notarization is optional in CI:
+
+- paid Apple Developer membership is required for Developer ID signing/notarization
+- without those secrets, release workflow still builds artifacts and Homebrew cask can still be published
 
 ## Product scope
 
