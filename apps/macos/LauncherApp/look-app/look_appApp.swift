@@ -6,12 +6,11 @@
 //
 
 import Darwin
+import Foundation
 import SwiftUI
 
 @main
 struct look_appApp: App {
-    private static let author = "kunkka07xx"
-
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appUIState = AppUIState()
     @StateObject private var themeStore = ThemeStore()
@@ -27,20 +26,10 @@ struct look_appApp: App {
     }
 
     private func handleCLIFlags() -> Int32? {
-        if CommandLine.arguments.contains("-h") || CommandLine.arguments.contains("--help") {
-            print("look - lightweight macOS launcher")
-            print("Author: \(Self.author)")
-            print("")
-            print("Usage:")
-            print("  look                Launch app UI")
-            print("  look -v, --version  Print version")
-            print("  look -h, --help     Print this help")
-            return 0
-        }
-
         if CommandLine.arguments.contains("-v") || CommandLine.arguments.contains("--version") {
-            let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-            let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+            let versionInfo = readVersionInfo()
+            let version = versionInfo.version
+            let build = versionInfo.build
             if let version {
                 if let build, build != version {
                     print("look \(version) (\(build))")
@@ -54,6 +43,35 @@ struct look_appApp: App {
         }
 
         return nil
+    }
+
+    private func readVersionInfo() -> (version: String?, build: String?) {
+        let bundleVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let bundleBuild = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        if bundleVersion != nil || bundleBuild != nil {
+            return (bundleVersion, bundleBuild)
+        }
+
+        let executablePath = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+        var cursor = executablePath.deletingLastPathComponent()
+        for _ in 0..<8 {
+            if cursor.pathExtension == "app" {
+                let infoURL = cursor.appendingPathComponent("Contents/Info.plist")
+                if let info = NSDictionary(contentsOf: infoURL) {
+                    let version = info["CFBundleShortVersionString"] as? String
+                    let build = info["CFBundleVersion"] as? String
+                    return (version, build)
+                }
+                break
+            }
+            let next = cursor.deletingLastPathComponent()
+            if next.path == cursor.path {
+                break
+            }
+            cursor = next
+        }
+
+        return (nil, nil)
     }
 
     var body: some Scene {
