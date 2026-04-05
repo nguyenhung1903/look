@@ -66,8 +66,8 @@ Install target:
 ### Verify installation
 
 - app path is usually `/Applications/Look.app` or `~/Applications/Look.app`
-- run `look -v` in terminal to verify CLI shim and installed version
-- run `look --help` to see available CLI flags
+- run `which lookapp` to verify CLI shim is installed and available on PATH
+- macOS already includes `/usr/bin/look`; use `lookapp` for this project CLI command
 - launch once from Finder or Spotlight, then test global hotkey (`Cmd+Space`, if available)
 - if app does not open from hotkey, check the Spotlight conflict section below
 

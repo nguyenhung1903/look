@@ -106,11 +106,12 @@ if [[ -z "$CLI_DIR" ]]; then
   CLI_DIR="$HOME/.local/bin"
 fi
 
-CLI_PATH="$CLI_DIR/look"
+CLI_PATH="$CLI_DIR/lookapp"
 ln -sf "$APP_EXECUTABLE" "$CLI_PATH"
 
 echo "CLI command installed: $CLI_PATH"
-echo "Version check: look -v"
+echo "Verify command path: which lookapp"
+echo "Note: macOS already has /usr/bin/look, so this project uses lookapp as CLI command name."
 if [[ ":$PATH:" != *":$CLI_DIR:"* ]]; then
   echo "Add to PATH if needed: export PATH=\"$CLI_DIR:\$PATH\""
 fi
