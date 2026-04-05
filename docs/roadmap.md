@@ -29,3 +29,9 @@
 - launch at login
 - packaging and release workflow
 - contributor-oriented docs
+
+## Continuous track (ongoing)
+
+- indexing quality improvements (coverage, refresh speed, exclude controls)
+- matching quality improvements (ranking precision, fuzzy behavior, typo resilience)
+- performance optimization as routine work (query latency, startup time, memory)

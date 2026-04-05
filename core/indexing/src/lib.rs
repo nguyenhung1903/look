@@ -1,10 +1,21 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CandidateKind {
     App,
     File,
     Folder,
+}
+
+impl fmt::Display for CandidateKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CandidateKind::App => write!(f, "app"),
+            CandidateKind::File => write!(f, "file"),
+            CandidateKind::Folder => write!(f, "folder"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

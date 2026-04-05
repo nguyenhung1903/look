@@ -290,14 +290,14 @@ struct LauncherView: View {
             ?? commandCatalog.first(where: { $0.id == selectedCommandID })
 
         guard let resolvedCommand else {
-            commandFeedback = "Unknown command. Try /shell, /calc, or /kill"
+            setCommandError("Unknown command. Try /shell, /calc, /kill, or /sys")
             return
         }
 
         switch resolvedCommand.id {
         case "shell":
             guard !commandArgsPart.isEmpty else {
-                commandFeedback = "Usage: /shell <command>"
+                setCommandError("Usage: /shell <command>")
                 return
             }
             commandFeedback = "Running..."
@@ -307,7 +307,7 @@ struct LauncherView: View {
             }
         case "calc":
             guard !commandArgsPart.isEmpty else {
-                commandFeedback = "Usage: /calc <expression>"
+                setCommandError("Usage: /calc <expression>")
                 return
             }
             let result = CalcCommand.evaluate(commandArgsPart)
@@ -317,7 +317,7 @@ struct LauncherView: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(value, forType: .string)
             case .error(let message):
-                commandFeedback = message
+                setCommandError(message)
             }
         case "kill":
             let apps = KillCommand.getRunningApps()
@@ -342,9 +342,16 @@ struct LauncherView: View {
                     commandFeedback = message
                 }
             }
+        case "sys":
+            commandFeedback = ""
         default:
-            commandFeedback = "Unsupported command"
+            setCommandError("Unsupported command")
         }
+    }
+
+    private func setCommandError(_ message: String) {
+        commandFeedback = message
+        showBanner(message)
     }
 
     private func runKillCommand(num: Int) {
@@ -506,15 +513,6 @@ struct LauncherView: View {
                     }
 
                     if isCommandMode {
-                        CommandFeedbackView(
-                            message: liveCommandPreview ?? (commandFeedback.isEmpty ? AppConstants.Launcher.commandEmptyMessage : commandFeedback),
-                            themeStore: themeStore
-                        )
-                    }
-
-                    if isCommandMode {
-                        Spacer(minLength: 8)
-
                         if activeCommandID == "kill" {
                             KillCommandView(
                                 suggestions: Array(killSuggestions),
@@ -536,6 +534,8 @@ struct LauncherView: View {
                                     selectedKillSuggestionIndex = killSuggestions.first?.1
                                 }
                             }
+                        } else if activeCommandID == "sys" {
+                            SystemInfoView(items: SystemInfoCommand.getSystemInfoItems(), themeStore: themeStore)
                         } else {
                             CommandListView(
                                 commands: filteredCommands,
@@ -545,20 +545,44 @@ struct LauncherView: View {
                                 onSelect: selectCommand
                             )
                         }
+
+                        if activeCommandID != "sys" {
+                            CommandFeedbackView(
+                                message: liveCommandPreview ?? (commandFeedback.isEmpty ? AppConstants.Launcher.commandEmptyMessage : commandFeedback),
+                                themeStore: themeStore
+                            )
+                        }
                     } else {
-                        ResultsListView(
-                            results: filteredResults,
-                            selectedID: selectedResultID,
-                            themeStore: themeStore,
-                            onSelect: { selectedResultID = $0 },
-                            onOpen: { _ in openSelectedApp() }
-                        )
+                        HStack(spacing: 0) {
+                            ResultsListView(
+                                results: filteredResults,
+                                selectedID: selectedResultID,
+                                themeStore: themeStore,
+                                onSelect: { selectedResultID = $0 },
+                                onOpen: { _ in openSelectedApp() }
+                            )
+
+                            if let selectedID = selectedResultID,
+                               let selectedResult = filteredResults.first(where: { $0.id == selectedID }) {
+                                Rectangle()
+                                    .fill(.white.opacity(0.08))
+                                    .frame(width: 1)
+                                    .padding(.vertical, 4)
+
+                                ResultPreviewView(result: selectedResult)
+                            }
+                        }
                     }
 
-                    HintBar(isCommandMode: isCommandMode, themeStore: themeStore)
+                    if isCommandMode {
+                        Spacer(minLength: 0)
+                    }
+
+                    HintBar(isCommandMode: isCommandMode, activeCommandID: activeCommandID, themeStore: themeStore)
                 }
             }
             .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .font(themeStore.uiFont())
             .foregroundStyle(themeStore.fontColor())
             .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -704,8 +728,22 @@ struct LauncherView: View {
             onExitCommandMode: {
                 exitCommandMode()
             },
+            onBackToCommandList: { [self] in
+                pendingKillApp = nil
+                selectedKillSuggestionIndex = nil
+                commandInput = ""
+                commandFeedback = ""
+                activeCommandID = "calc"
+                selectedCommandID = "calc"
+            },
             onWebSearch: {
                 performWebSearchFromQuery()
+            },
+            onSelectCommandByIndex: { [self] index in
+                guard index > 0 && index <= commandCatalog.count else { return }
+                let command = commandCatalog[index - 1]
+                activeCommandID = command.id
+                selectedCommandID = command.id
             },
             onConfirmKill: { [self] in
                 if let (_, num) = pendingKillApp {

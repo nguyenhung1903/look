@@ -6,9 +6,35 @@ It helps you do three things quickly in one window:
 
 - launch installed apps
 - search local files and folders by name
-- run quick commands (calculator and shell)
+- run quick commands (calculator, shell, kill, and system info)
 
 The interface is local-first, lightweight, and designed for low-friction daily use.
+
+## Installation
+
+### Homebrew tap (recommended once release is published)
+
+```bash
+brew tap kunkka19xx/tap
+brew install --cask look
+```
+
+### Curl installer
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash
+```
+
+### Installer options
+
+- choose version: `--version <version>` or env `LOOK_VERSION=<version>`
+- choose repository: `--repo kunkka19xx/look` or env `LOOK_REPO=kunkka19xx/look`
+- use a direct zip URL: `--url <release-zip-url>` or env `LOOK_DOWNLOAD_URL=<release-zip-url>`
+
+Install target:
+
+- installs to `/Applications` when writable
+- otherwise installs to `~/Applications`
 
 ## What makes look different
 
@@ -57,15 +83,18 @@ Command mode starts with `calc` selected by default.
 
 In command mode:
 
-- `Tab` / `Shift+Tab` switches command type
+- `Tab` switches to next command
+- `Cmd+1` / `Cmd+2` / `Cmd+3` selects command directly
 - `Enter` runs the current command input
 - `Escape` exits command mode
+- `Cmd+Escape` returns to command list on `calc`
 
 Available commands:
 
 - `calc`: evaluate math expressions
 - `shell`: run shell commands
 - `kill`: force kill a running app (see Kill command shortcuts above)
+- `sys`: show system info (model, macOS, memory, CPU usage, battery, uptime, disk)
 
 Examples:
 
@@ -194,8 +223,9 @@ ui_border_opacity=0.12
 - `Shift+Tab`: previous result / previous command
 - `Enter`: open selected result, run command, translate (if `t"...`), or confirm kill
 - `/`: enter command mode
-- `Escape`: exit command mode (or cancel confirmation)
+- `Escape`: exit command mode
 - `Cmd+Enter`: search query on Google
+- `Cmd+Escape`: back to command list (`calc`) while staying in command mode
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
 - `Cmd+-`: zoom out (temporary UI scale)
@@ -205,12 +235,11 @@ ui_border_opacity=0.12
 ### Kill command shortcuts
 
 - `Up` / `Down`: navigate app list
+- `Cmd+1` / `Cmd+2` / `Cmd+3`: switch command
 - `Enter`: select app (shows confirmation)
 - `Y` / click "Yes": confirm kill
 - `N` / click "No": cancel
-
-In Settings panel, use **Save Config** to write current UI values back to `~/.look.config`.
-Font name supports installed-font suggestions in the UI.
+- `Cmd+Escape`: back to command list (calc)
 
 ## What look is for
 
@@ -225,5 +254,5 @@ It is not trying to be a full plugin ecosystem or cloud assistant. The core goal
 ## Planned features
 
 - **App preview**: 2-column layout with icon/name on left, info/preview on right
-- **System info command**: `/sys` command for memory, CPU, battery, weather
+- **System info command**: `/sys` command for model, macOS, memory, CPU usage, battery, uptime, and disk
 - **Homebrew release**: Installation via homebrew

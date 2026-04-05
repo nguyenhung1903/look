@@ -135,6 +135,8 @@ dependencies = [
  "look-ranking",
  "look-storage",
  "plist",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

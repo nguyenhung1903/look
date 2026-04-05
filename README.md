@@ -4,7 +4,7 @@ A minimal, rofi-inspired macOS launcher focused on fast local actions:
 
 - launch installed apps
 - search local files and folders by name
-- quick command mode for calculator, shell, and kill
+- quick command mode for calculator, shell, kill, and system info
 
 Default behavior:
 
@@ -55,16 +55,45 @@ Indexing config supports include roots plus exclude rules for both apps and file
 
 ## Current keyboard UX
 
-- `Tab` / `Shift+Tab`: move through app results or switch command type in command mode
-- `Up` / `Down`: move through app results or kill app list
+- `Tab`: next result or next command
+- `Up` / `Down`: navigate app list (in kill command)
 - `/`: enter command mode (defaults to `calc`)
 - `Escape`: exit command mode
+- `Cmd+1` / `Cmd+2` / `Cmd+3`: switch command directly
+- `Cmd+Esc`: back to command list (`calc`) while staying in command mode
 - `Enter`: launch selected app, execute active command, translate (if `t"...`), or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
 - `Cmd+-`, `Cmd+=`, `Cmd+0`: temporary UI zoom out/in/reset
+
+## Installation
+
+Homebrew tap (recommended once release is published):
+
+```bash
+brew tap kunkka19xx/tap
+brew install --cask look
+```
+
+Curl installer (after a GitHub release exists):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash
+```
+
+Manual installer options:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash -s -- --version <version> --repo kunkka19xx/look
+```
+
+or direct URL:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash -s -- --url "https://github.com/kunkka19xx/look/releases/download/v<version>/Look-<version>-macOS.zip"
+```
 
 ## Quick start
 
@@ -88,6 +117,13 @@ cd bridge/ffi
 cargo check
 ```
 
+Prepare release artifacts/scripts (maintainers):
+
+```bash
+./scripts/build-release.sh 1.0.0
+./scripts/generate-homebrew-cask.sh 1.0.0 <sha256> kunkka19xx/look
+```
+
 ## Product scope
 
 In scope for first milestone:
@@ -97,7 +133,7 @@ In scope for first milestone:
 - query file/folder name index and open/reveal
 - web search handoff with Google
 - translate text with `t"...`
-- command mode with `calc`, `shell`, and `kill`
+- command mode with `calc`, `shell`, `kill`, and `sys`
 - predictable, local-first behavior
 
 Out of scope for v1:
@@ -111,3 +147,8 @@ Out of scope for v1:
 ## License
 
 MIT
+
+## Community
+
+- Contributing guide: `CONTRIBUTING.md`
+- Issue templates: `.github/ISSUE_TEMPLATE/`

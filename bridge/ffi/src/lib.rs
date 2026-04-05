@@ -1,9 +1,7 @@
 #![allow(unsafe_code)]
 
 use look_engine::QueryEngine;
-use look_indexing::CandidateKind;
 use look_storage::SqliteStore;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use std::ffi::{CStr, CString};
@@ -16,21 +14,11 @@ pub struct FfiSearchResult {
     pub count: u32,
 }
 
-#[derive(Serialize)]
-struct FfiSearchItem {
-    id: String,
-    kind: String,
-    title: String,
-    subtitle: Option<String>,
-    path: String,
-    score: i64,
-}
-
-#[derive(Serialize)]
+#[derive(serde::Serialize)]
 struct FfiSearchPayload {
     query: String,
     count: usize,
-    results: Vec<FfiSearchItem>,
+    results: Vec<look_engine::LaunchResult>,
 }
 
 #[unsafe(no_mangle)]
@@ -50,23 +38,9 @@ pub extern "C" fn look_search_json(query: *const c_char, limit: u32) -> *mut c_c
     let results = with_engine(|engine| engine.search(&query, max));
 
     let payload = FfiSearchPayload {
-        query,
+        query: query.clone(),
         count: results.len(),
-        results: results
-            .into_iter()
-            .map(|entry| FfiSearchItem {
-                id: entry.candidate.id,
-                kind: match entry.candidate.kind {
-                    CandidateKind::App => "app".to_string(),
-                    CandidateKind::File => "file".to_string(),
-                    CandidateKind::Folder => "folder".to_string(),
-                },
-                title: entry.candidate.title,
-                subtitle: entry.candidate.subtitle,
-                path: entry.candidate.path,
-                score: entry.score,
-            })
-            .collect(),
+        results,
     };
 
     let json = serde_json::to_string(&payload)

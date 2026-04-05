@@ -1,12 +1,16 @@
-mod config;
-mod index;
+pub mod action;
+pub mod config;
+pub mod index;
+pub mod result;
 
+pub use action::{ActionKind, LaunchAction};
 use config::*;
 use index::discover_candidates;
 use look_indexing::{Candidate, CandidateKind};
 use look_matching::fuzzy_score;
 use look_ranking::rank_score;
 use look_storage::{SearchSettings, SqliteStore, StorageError};
+pub use result::{LaunchResult, LaunchResultAction};
 use std::collections::HashSet;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -21,7 +25,15 @@ impl QueryEngine {
         Self { candidates }
     }
 
-    pub fn search(&self, query: &str, limit: usize) -> Vec<ScoredCandidate> {
+    pub fn search(&self, query: &str, limit: usize) -> Vec<LaunchResult> {
+        let scored = self.search_scored(query, limit);
+        scored
+            .into_iter()
+            .map(|(candidate, score)| LaunchResult::from((&candidate, score)))
+            .collect()
+    }
+
+    pub fn search_scored(&self, query: &str, limit: usize) -> Vec<(Candidate, i64)> {
         let normalized_query = query.trim().to_lowercase();
         if normalized_query.is_empty() {
             let now_unix_s = SystemTime::now()
@@ -29,25 +41,23 @@ impl QueryEngine {
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
 
-            let mut browse = self
+            let mut browse: Vec<_> = self
                 .candidates
                 .iter()
-                .map(|candidate| ScoredCandidate {
-                    candidate: candidate.clone(),
-                    score: default_browse_score(candidate, now_unix_s),
+                .map(|candidate| {
+                    (
+                        candidate.clone(),
+                        default_browse_score(candidate, now_unix_s),
+                    )
                 })
-                .collect::<Vec<_>>();
+                .collect();
 
-            browse.sort_by(|a, b| {
-                b.score
-                    .cmp(&a.score)
-                    .then_with(|| a.candidate.title.cmp(&b.candidate.title))
-            });
+            browse.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.title.cmp(&b.0.title)));
             browse.truncate(limit);
             return browse;
         }
 
-        let mut scored: Vec<ScoredCandidate> = self
+        let mut scored: Vec<(Candidate, i64)> = self
             .candidates
             .iter()
             .filter_map(|candidate| {
@@ -68,18 +78,11 @@ impl QueryEngine {
                     + kind_bias(candidate)
                     + query_kind_penalty(&normalized_query, candidate)
                     + path_depth_penalty(candidate);
-                Some(ScoredCandidate {
-                    candidate: candidate.clone(),
-                    score: final_score,
-                })
+                Some((candidate.clone(), final_score))
             })
             .collect();
 
-        scored.sort_by(|a, b| {
-            b.score
-                .cmp(&a.score)
-                .then_with(|| a.candidate.title.cmp(&b.candidate.title))
-        });
+        scored.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.title.cmp(&b.0.title)));
         scored.truncate(limit);
         scored
     }
@@ -266,10 +269,4 @@ fn default_browse_score(candidate: &Candidate, now_unix_s: i64) -> i64 {
         .unwrap_or(0);
 
     kind_boost + frequency + recency
-}
-
-#[derive(Clone, Debug)]
-pub struct ScoredCandidate {
-    pub candidate: Candidate,
-    pub score: i64,
 }

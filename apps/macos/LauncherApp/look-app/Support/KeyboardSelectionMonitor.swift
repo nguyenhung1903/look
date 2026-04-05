@@ -9,7 +9,9 @@ final class KeyboardSelectionMonitor {
         onNext: @escaping () -> Void,
         onPrevious: @escaping () -> Void,
         onExitCommandMode: @escaping () -> Void,
+        onBackToCommandList: @escaping () -> Void,
         onWebSearch: @escaping () -> Void,
+        onSelectCommandByIndex: @escaping (Int) -> Void,
         onConfirmKill: (() -> Void)? = nil,
         onCancelKill: (() -> Void)? = nil,
         killConfirmationActive: @escaping () -> Bool = { false }
@@ -18,9 +20,28 @@ final class KeyboardSelectionMonitor {
         self.isKillConfirmationActive = killConfirmationActive
 
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 36 && event.modifierFlags.contains(.command) {
+            if event.keyCode == 36 && event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.shift) {
                 onWebSearch()
                 return nil
+            }
+
+            if event.keyCode == 36 && event.modifierFlags.contains(.command) && event.modifierFlags.contains(.shift) {
+                onSelectCommandByIndex(1)
+                return nil
+            }
+
+            if event.keyCode == 53 && event.modifierFlags.contains(.command) {
+                onBackToCommandList()
+                return nil
+            }
+
+            if event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.control) && !event.modifierFlags.contains(.option) {
+                let keyNumber = Int(event.keyCode)
+                if keyNumber >= 18 && keyNumber <= 21 {
+                    let index = keyNumber - 17
+                    onSelectCommandByIndex(index)
+                    return nil
+                }
             }
 
             if event.modifierFlags.contains(.command)
@@ -30,19 +51,13 @@ final class KeyboardSelectionMonitor {
                 return event
             }
 
-            if event.keyCode == 53 && event.modifierFlags.contains(.shift) {
-                onExitCommandMode()
-                return nil
-            }
-
             if event.keyCode == 53 {
                 if killConfirmationActive() {
                     onCancelKill?()
                     return nil
-                } else {
-                    onExitCommandMode()
-                    return nil
                 }
+                onExitCommandMode()
+                return nil
             }
 
             if killConfirmationActive() {

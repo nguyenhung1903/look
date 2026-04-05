@@ -69,36 +69,41 @@ struct CommandListView: View {
     let themeStore: ThemeStore
     let onSelect: (String) -> Void
 
+    private var columns: [GridItem] {
+        [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+    }
+
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 4) {
                 ForEach(commands) { command in
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         Image(systemName: "terminal")
-                            .frame(width: 22, height: 22)
+                            .frame(width: 18, height: 18)
                             .foregroundStyle(.green)
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 1) {
                             Text("/\(command.title)")
-                                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .semibold))
+                                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
                             Text(command.detail)
-                                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
+                                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
                                 .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                                .lineLimit(1)
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                     .background(
                         (selectedID == command.id || activeID == command.id)
                             ? .green.opacity(0.20) : .white.opacity(0.08),
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
                     )
                     .onTapGesture { onSelect(command.id) }
                 }
             }
             .padding(2)
         }
-        .frame(maxHeight: AppConstants.Launcher.commandListMaxHeight)
+        .frame(maxHeight: AppConstants.Launcher.commandListMaxHeight, alignment: .top)
     }
 }
 
@@ -139,10 +144,21 @@ struct ResultsListView: View {
 
 struct HintBar: View {
     let isCommandMode: Bool
+    let activeCommandID: String?
     let themeStore: ThemeStore
 
+    var hint: String {
+        if isCommandMode && activeCommandID == "kill" {
+            return AppConstants.Launcher.killHint
+        }
+        if isCommandMode && activeCommandID == "sys" {
+            return AppConstants.Launcher.sysHint
+        }
+        return isCommandMode ? AppConstants.Launcher.commandHint : AppConstants.Launcher.normalHint
+    }
+
     var body: some View {
-        Text(isCommandMode ? AppConstants.Launcher.commandHint : AppConstants.Launcher.normalHint)
+        Text(hint)
             .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
             .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
     }
