@@ -53,11 +53,24 @@ struct look_appApp: App {
         }
 
         let executablePath = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+        let executableDir = executablePath.deletingLastPathComponent()
+
+        let directInfoPlist = executableDir
+            .deletingLastPathComponent()
+            .appendingPathComponent("Info.plist")
+        if let info = readInfoPlist(at: directInfoPlist) {
+            let version = info["CFBundleShortVersionString"] as? String
+            let build = info["CFBundleVersion"] as? String
+            if version != nil || build != nil {
+                return (version, build)
+            }
+        }
+
         var cursor = executablePath.deletingLastPathComponent()
         for _ in 0..<8 {
             if cursor.pathExtension == "app" {
                 let infoURL = cursor.appendingPathComponent("Contents/Info.plist")
-                if let info = NSDictionary(contentsOf: infoURL) {
+                if let info = readInfoPlist(at: infoURL) {
                     let version = info["CFBundleShortVersionString"] as? String
                     let build = info["CFBundleVersion"] as? String
                     return (version, build)
@@ -72,6 +85,20 @@ struct look_appApp: App {
         }
 
         return (nil, nil)
+    }
+
+    private func readInfoPlist(at url: URL) -> [String: Any]? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        guard
+            let plist = try? PropertyListSerialization.propertyList(
+                from: data,
+                options: [],
+                format: nil
+            )
+        else {
+            return nil
+        }
+        return plist as? [String: Any]
     }
 
     var body: some Scene {
