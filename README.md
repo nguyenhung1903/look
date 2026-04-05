@@ -123,9 +123,12 @@ Curl installer (after a GitHub release exists):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash
-look -v
-look --help
+which lookapp
 ```
+
+CLI naming note:
+
+- macOS already ships `/usr/bin/look`, so this project uses `lookapp` for terminal command examples
 
 Manual installer options:
 
