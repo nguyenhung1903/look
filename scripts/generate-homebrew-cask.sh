@@ -12,7 +12,7 @@ SHA256="$2"
 REPO_SLUG="$3"
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-OUT_DIR="$ROOT_DIR/dist/homebrew-tap/Casks"
+OUT_DIR="$ROOT_DIR/.build/homebrew-tap/Casks"
 OUT_FILE="$OUT_DIR/look.rb"
 
 mkdir -p "$OUT_DIR"

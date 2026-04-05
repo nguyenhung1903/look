@@ -23,7 +23,7 @@ Latest local packaging run:
 - version: `1.0.0`
 - artifact: `dist/Look-1.0.0-macOS.zip`
 - sha256: `9d03d144278b72d690af5c9e7b9964f847e17e1ac75e7bcec77260d92fede32d`
-- generated cask: `dist/homebrew-tap/Casks/look.rb`
+- generated cask: `.build/homebrew-tap/Casks/look.rb`
 
 ## How to build artifact
 
@@ -63,7 +63,7 @@ Options:
 
 This writes:
 
-- `dist/homebrew-tap/Casks/look.rb`
+- `.build/homebrew-tap/Casks/look.rb`
 
 Then copy `look.rb` into your tap repository at `Casks/look.rb` (example tap name: `homebrew-tap`).
 
