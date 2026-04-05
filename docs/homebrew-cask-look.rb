@@ -8,4 +8,5 @@ cask "look" do
   homepage "https://github.com/kunkka19xx/look"
 
   app "Look.app"
+  binary "Look.app/Contents/MacOS/Look", target: "look"
 end

@@ -38,6 +38,7 @@ struct LauncherView: View {
     @State private var bannerTask: Task<Void, Never>?
     @State private var selectedKillSuggestionIndex: Int?
     @State private var pendingKillApp: (NSRunningApplication, Int)?
+    @State private var focusRequestToken: UInt64 = 0
     @FocusState private var isQueryFocused: Bool
 
     private let bridge = EngineBridge.shared
@@ -465,13 +466,27 @@ struct LauncherView: View {
             return
         }
 
+        focusRequestToken &+= 1
+        let token = focusRequestToken
+
         NSApplication.shared.activate(ignoringOtherApps: true)
-        scheduleFocusRecovery(delays: [0.0, 0.04, 0.12])
+        scheduleFocusRecovery(delays: [0.0, 0.04, 0.10], token: token)
     }
 
-    private func scheduleFocusRecovery(delays: [Double]) {
+    private func activateLauncherModeAndFocus() {
+        if appUIState.showsThemeSettings {
+            appUIState.showsThemeSettings = false
+        }
+        if isCommandMode {
+            exitCommandMode()
+        }
+        focusActiveInput()
+    }
+
+    private func scheduleFocusRecovery(delays: [Double], token: UInt64) {
         for delay in delays {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard token == focusRequestToken else { return }
                 guard !appUIState.showsThemeSettings else { return }
                 guard let window = NSApplication.shared.windows.first else { return }
 
@@ -486,7 +501,6 @@ struct LauncherView: View {
                     window.makeFirstResponder(responder)
                 }
 
-                isQueryFocused = false
                 isQueryFocused = true
             }
         }
@@ -522,7 +536,7 @@ struct LauncherView: View {
 
         NSApplication.shared.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
-        focusActiveInput()
+        activateLauncherModeAndFocus()
     }
 
     private func hideLauncherWindow() {
@@ -705,6 +719,13 @@ struct LauncherView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(), lineWidth: themeStore.borderLineWidth())
         )
+        .overlay(alignment: .bottomTrailing) {
+            Link("© 2026 by Kunkka", destination: URL(string: "https://github.com/kunkka19xx")!)
+                .font(themeStore.uiFont(size: CGFloat(max(9, themeStore.settings.fontSize - 4)), weight: .regular))
+                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.50))
+                .padding(.trailing, 10)
+                .padding(.bottom, 8)
+        }
         .ignoresSafeArea()
         .onAppear {
             refreshSearchResults()
@@ -755,6 +776,12 @@ struct LauncherView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookRefocusInputRequested)) { _ in
             focusActiveInput()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lookActivateLauncherRequested)) { _ in
+            activateLauncherModeAndFocus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .lookHideLauncherRequested)) { _ in
+            hideLauncherWindow()
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookToggleWindowRequested)) { _ in
             toggleWindowVisibility()
