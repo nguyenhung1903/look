@@ -1,6 +1,6 @@
 # look
 
-![look icon](assets/icon.png)
+<img src="assets/icon.png" alt="look icon" width="96" />
 
 A minimal, rofi-inspired macOS launcher focused on fast local actions:
 
