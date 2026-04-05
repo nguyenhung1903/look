@@ -23,6 +23,13 @@ brew tap kunkka19xx/tap
 brew install --cask look
 ```
 
+Update and reinstall via Homebrew:
+
+```bash
+brew update
+brew upgrade --cask look
+```
+
 Unsigned release behavior:
 
 - if the distributed app is not Developer ID signed/notarized, macOS may block first launch
@@ -32,6 +39,12 @@ Unsigned release behavior:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash
+```
+
+Install a specific release version with curl installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash -s -- --version 1.0.0 --repo kunkka19xx/look
 ```
 
 ### Installer options
@@ -50,12 +63,54 @@ Install target:
 - installs to `/Applications` when writable
 - otherwise installs to `~/Applications`
 
+### Verify installation
+
+- app path is usually `/Applications/Look.app` or `~/Applications/Look.app`
+- launch once from Finder or Spotlight, then test global hotkey (`Cmd+Space`, if available)
+- if app does not open from hotkey, check the Spotlight conflict section below
+
+### Uninstall
+
+Homebrew install:
+
+```bash
+brew uninstall --cask look
+brew untap kunkka19xx/tap  # optional, only if you no longer use this tap
+```
+
+Curl/manual install:
+
+```bash
+rm -rf "/Applications/Look.app"
+rm -rf "$HOME/Applications/Look.app"
+```
+
+Optional cleanup of local data/config:
+
+```bash
+rm -f "$HOME/.look.config"
+rm -f "$HOME/Library/Application Support/look/look.db"
+```
+
+Note: optional cleanup removes your indexed data, usage history, and custom settings.
+
 ## What makes look different
 
 - one focused launcher window instead of many utility apps
 - keyboard-first workflow with instant mode switching
 - transparent, blur-based UI that can be themed
 - optional command mode for utility tasks without leaving context
+
+## How look compares
+
+Compared with broader launcher platforms (for example Raycast and similar tools), look intentionally emphasizes:
+
+- simplicity over large extension/plugin ecosystems
+- lightweight local-first behavior
+- open-source development model
+- free usage without paid feature tiers
+
+look is best for users who want a fast, minimal, predictable launcher rather than a large all-in-one productivity platform.
 
 ## Core usage
 
@@ -74,6 +129,11 @@ This includes:
 - press `Up` / `Down` to move selection
 - press `Enter` to open the selected result
 - click a row to open it
+
+If results look stale or missing after config/indexing changes:
+
+- press `Cmd+Shift+;` to reload config and refresh backend index
+- check `file_scan_roots`, `file_scan_depth`, and `file_scan_limit` in `~/.look.config`
 
 Path-style query is supported directly in normal search:
 
@@ -163,11 +223,22 @@ Global hotkey:
 - launcher hotkey is `Cmd+Space` (Spotlight-style toggle)
 - if Spotlight still uses `Cmd+Space`, remap or disable Spotlight shortcut in macOS Keyboard Shortcuts first
 
+Hotkey behavior notes:
+
+- `Cmd+Space` only works when Spotlight is not bound to the same shortcut
+- window managers (for example tiling tools) may alter focus behavior; if focus looks stuck, press the hotkey again or click inside the launcher to refocus
+
 Troubleshooting `Cmd+Space` conflict:
 
 - open `System Settings` -> `Keyboard` -> `Keyboard Shortcuts...` -> `Spotlight`
 - disable `Show Spotlight search` or rebind it to a different shortcut
 - reopen look and test `Cmd+Space` again
+
+Troubleshooting first-run launch block (Gatekeeper):
+
+- if macOS says the app cannot be opened, right-click `Look.app` in Finder -> `Open` -> confirm
+- or use `System Settings` -> `Privacy & Security` -> `Open Anyway`
+- this is expected for unsigned/not-notarized builds
 
 Other settings UX:
 
@@ -317,3 +388,9 @@ It is not trying to be a full plugin ecosystem or cloud assistant. The core goal
 - **App preview**: 2-column layout with icon/name on left, info/preview on right
 - **System info command**: `/sys` command for model, macOS, memory, CPU usage, battery, uptime, and disk
 - **Homebrew release**: Installation via homebrew
+
+## Platform roadmap
+
+- current focus: macOS
+- planned next platform: Windows
+- Linux is not a near-term target; existing Linux launcher tooling (for example `rofi`) already serves similar use cases well

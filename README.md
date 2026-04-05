@@ -14,6 +14,18 @@ Default behavior:
 
 The project is designed around low latency, keyboard-first interaction, and a small native footprint.
 
+## Positioning
+
+Compared with larger launcher ecosystems (for example Raycast, Alfred, and similar tools), `look` is intentionally focused:
+
+- simple core workflow: app/file/folder search + a few built-in commands
+- lightweight and local-first behavior
+- fully open source
+- free to use
+- no plugin marketplace complexity in the default experience
+
+If you want a minimal launcher that stays fast and predictable, `look` is built for that.
+
 User-level behavior can be configured with `~/.look.config` (indexing + UI theme/font; see `docs/user-guide.md` for supported keys).
 
 Indexing config supports include roots plus exclude rules for both apps and files.
@@ -138,6 +150,12 @@ Signing/notarization is optional in CI:
 - without those secrets, release workflow still builds artifacts and Homebrew cask can still be published
 
 ## Product scope
+
+Platform direction:
+
+- current primary target is macOS
+- planned: Windows version (after macOS release quality is stable)
+- Linux version is not a near-term priority because tools like `rofi` already cover much of this workflow well
 
 In scope for first milestone:
 
