@@ -52,7 +52,7 @@ struct look_appApp: App {
             return (bundleVersion, bundleBuild)
         }
 
-        let executablePath = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+        let executablePath = resolvedExecutablePath()
         let executableDir = executablePath.deletingLastPathComponent()
 
         let directInfoPlist = executableDir
@@ -85,6 +85,28 @@ struct look_appApp: App {
         }
 
         return (nil, nil)
+    }
+
+    private func resolvedExecutablePath() -> URL {
+        var size: UInt32 = 0
+        _ = _NSGetExecutablePath(nil, &size)
+        if size > 0 {
+            var buffer = [CChar](repeating: 0, count: Int(size))
+            if _NSGetExecutablePath(&buffer, &size) == 0 {
+                let path = String(cString: buffer)
+                return URL(fileURLWithPath: path).resolvingSymlinksInPath()
+            }
+        }
+
+        if let firstArg = CommandLine.arguments.first,
+            firstArg.hasPrefix("/")
+        {
+            return URL(fileURLWithPath: firstArg).resolvingSymlinksInPath()
+        }
+
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent(CommandLine.arguments.first ?? "Look")
+            .resolvingSymlinksInPath()
     }
 
     private func readInfoPlist(at url: URL) -> [String: Any]? {
