@@ -85,9 +85,34 @@ fi
 echo "Installing to: $TARGET_DIR"
 ditto "$EXTRACT_DIR/$APP_NAME" "$TARGET_APP"
 
+APP_EXECUTABLE="$TARGET_APP/Contents/MacOS/Look"
+
 if command -v xattr >/dev/null 2>&1; then
   xattr -dr com.apple.quarantine "$TARGET_APP" 2>/dev/null || true
 fi
 
 echo "Installed $APP_NAME"
+
+CLI_DIR=""
+for candidate in "/opt/homebrew/bin" "/usr/local/bin" "$HOME/.local/bin"; do
+  if [[ -d "$candidate" && -w "$candidate" ]]; then
+    CLI_DIR="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$CLI_DIR" ]]; then
+  mkdir -p "$HOME/.local/bin"
+  CLI_DIR="$HOME/.local/bin"
+fi
+
+CLI_PATH="$CLI_DIR/look"
+ln -sf "$APP_EXECUTABLE" "$CLI_PATH"
+
+echo "CLI command installed: $CLI_PATH"
+echo "Version check: look -v"
+if [[ ":$PATH:" != *":$CLI_DIR:"* ]]; then
+  echo "Add to PATH if needed: export PATH=\"$CLI_DIR:\$PATH\""
+fi
+
 echo "Launch it from Finder or run: open \"$TARGET_APP\""

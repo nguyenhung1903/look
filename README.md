@@ -93,6 +93,8 @@ Homebrew tap (recommended once release is published):
 ```bash
 brew tap kunkka19xx/tap
 brew install --cask look
+look -v
+look --help
 ```
 
 Unsigned release note:
@@ -104,6 +106,8 @@ Curl installer (after a GitHub release exists):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kunkka19xx/look/main/scripts/install-look.sh | bash
+look -v
+look --help
 ```
 
 Manual installer options:
@@ -160,6 +164,12 @@ Platform direction:
 - planned: Windows version (after macOS release quality is stable)
 - Linux version is not a near-term priority because tools like `rofi` already cover much of this workflow well
 
+Future direction:
+
+- we will keep adding useful built-in features when they stay aligned with the simple/fast philosophy
+- community ideas are welcome; strong ideas with clear user value can be prioritized into the roadmap
+- near-future exploration includes a plugin/extension injection model for developer customization
+
 In scope for first milestone:
 
 - global hotkey opens launcher
@@ -186,3 +196,7 @@ MIT
 
 - Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Issue templates: [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/)
+
+## Author
+
+- kunkka07xx

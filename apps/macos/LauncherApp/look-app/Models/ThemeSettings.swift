@@ -125,6 +125,7 @@ struct ThemeSettings: Codable {
     var fileScanLimit: Int = 8000
     var translateAllowNetwork: Bool = false
     var backendLogLevel: BackendLogLevel = .error
+    var launchAtLogin: Bool = true
 
     static let `default` = ThemeSettings()
 }

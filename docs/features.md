@@ -8,6 +8,7 @@ This page defines the near-term feature scope for `look` and how each feature ma
 - local-first indexing and ranking
 - command utilities integrated in the same query flow
 - predictable behavior with clear safety cues
+- extensible roadmap guided by practical user feedback
 
 ## Feature tracks
 
@@ -75,3 +76,11 @@ This page defines the near-term feature scope for `look` and how each feature ma
 - structured error handling across backend and bridge
 - focused test coverage for ranking/indexing/ffi behavior
 - development-friendly logging and diagnostics
+
+## 6) Extensibility roadmap
+
+### Planned
+
+- accept and evaluate community feature proposals continuously
+- add plugin/extension injection path for developer customization
+- keep extension model optional so base launcher remains simple and fast

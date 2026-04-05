@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 import AppKit
+import ServiceManagement
 
 final class ThemeStore: ObservableObject {
     @Published private(set) var backgroundImageURL: URL?
@@ -34,6 +35,7 @@ final class ThemeStore: ObservableObject {
         }
 
         applyThemeOverridesFromConfigFile()
+        _ = applyLaunchAtLoginSetting()
 
         refreshBackgroundImageURL()
     }
@@ -46,6 +48,7 @@ final class ThemeStore: ObservableObject {
     func reloadFromConfig() {
         Self.ensureDefaultConfigFileExists(at: Self.configPath())
         applyThemeOverridesFromConfigFile()
+        _ = applyLaunchAtLoginSetting()
     }
 
     func saveCurrentConfigToFile() -> Bool {
@@ -84,11 +87,12 @@ final class ThemeStore: ObservableObject {
         upsertConfigLine(&lines, key: "file_scan_limit", value: String(settings.fileScanLimit))
         upsertConfigLine(&lines, key: "translate_allow_network", value: settings.translateAllowNetwork ? "true" : "false")
         upsertConfigLine(&lines, key: "backend_log_level", value: settings.backendLogLevel.rawValue)
+        upsertConfigLine(&lines, key: "launch_at_login", value: settings.launchAtLogin ? "true" : "false")
 
         let payload = lines.joined(separator: "\n") + "\n"
         do {
             try payload.write(to: path, atomically: true, encoding: .utf8)
-            return true
+            return applyLaunchAtLoginSetting()
         } catch {
             return false
         }
@@ -278,6 +282,10 @@ final class ThemeStore: ObservableObject {
                 if let parsed = parseBackendLogLevel(value) {
                     settings.backendLogLevel = parsed
                 }
+            case "launch_at_login":
+                if let parsed = parseBool(value) {
+                    settings.launchAtLogin = parsed
+                }
             default:
                 continue
             }
@@ -424,6 +432,7 @@ file_scan_limit=8000
 file_exclude_paths=
 translate_allow_network=false
 backend_log_level=error
+launch_at_login=true
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
 
 # UI theme
@@ -473,5 +482,24 @@ ui_border_opacity=0.12
             backgroundImageURL = url
             backgroundImage = NSImage(contentsOf: url)
         }
+    }
+
+    private func applyLaunchAtLoginSetting() -> Bool {
+        if #available(macOS 13.0, *) {
+            do {
+                if settings.launchAtLogin {
+                    if SMAppService.mainApp.status != .enabled {
+                        try SMAppService.mainApp.register()
+                    }
+                } else if SMAppService.mainApp.status == .enabled {
+                    try SMAppService.mainApp.unregister()
+                }
+                return true
+            } catch {
+                return false
+            }
+        }
+
+        return false
     }
 }

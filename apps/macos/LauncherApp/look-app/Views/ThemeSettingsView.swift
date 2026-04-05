@@ -397,6 +397,24 @@ struct ThemeSettingsView: View {
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+
+                    Divider()
+                        .overlay(.white.opacity(0.1))
+                        .padding(.vertical, 4)
+
+                    Text("Startup")
+                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+
+                    Toggle(isOn: $settings.launchAtLogin) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Launch at login")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            Text("Start look automatically when you sign in")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                        }
+                    }
                 }
             }
             .scrollIndicators(.hidden)

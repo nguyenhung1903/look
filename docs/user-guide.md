@@ -66,8 +66,14 @@ Install target:
 ### Verify installation
 
 - app path is usually `/Applications/Look.app` or `~/Applications/Look.app`
+- run `look -v` in terminal to verify CLI shim and installed version
+- run `look --help` to see available CLI flags
 - launch once from Finder or Spotlight, then test global hotkey (`Cmd+Space`, if available)
 - if app does not open from hotkey, check the Spotlight conflict section below
+
+## Author
+
+- kunkka07xx
 
 ### Uninstall
 
@@ -215,7 +221,7 @@ To open settings:
 Settings are shown inside the same launcher window and include:
 
 - appearance: tint color, blur style, blur opacity, font family/size, text color, border style
-- advanced: background image controls and indexing controls (`file_scan_depth`, `file_scan_limit`)
+- advanced: background, indexing, privacy/logging, and startup controls (`file_scan_depth`, `file_scan_limit`, `translate_allow_network`, `backend_log_level`, `launch_at_login`)
 - shortcuts: built-in documentation tab
 
 Global hotkey:
@@ -273,6 +279,7 @@ Backend indexing keys:
 - `file_exclude_paths`: comma-separated paths to exclude from file/folder indexing (supports `~/...`, absolute paths, and home-relative names); default: empty
 - `translate_allow_network`: allow network translation requests for `t"...` (`true`/`false`); default: `false`
 - `backend_log_level`: backend log verbosity (`error`/`info`/`debug`); default: `error`
+- `launch_at_login`: auto-start look after user sign-in (`true`/`false`); default: `true`
 - `skip_dir_names`: comma-separated directory names to ignore during file scan (case-insensitive); default: `node_modules,target,build,dist,library,applications,old firefox data`
 
 UI keys:
@@ -322,6 +329,7 @@ file_scan_limit=8000
 file_exclude_paths=
 translate_allow_network=false
 backend_log_level=error
+launch_at_login=true
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
 
 # UI theme
@@ -388,6 +396,12 @@ It is not trying to be a full plugin ecosystem or cloud assistant. The core goal
 - **App preview**: 2-column layout with icon/name on left, info/preview on right
 - **System info command**: `/sys` command for model, macOS, memory, CPU usage, battery, uptime, and disk
 - **Homebrew release**: Installation via homebrew
+
+Roadmap style:
+
+- look will continue to add features that keep the launcher simple, fast, and local-first
+- user ideas are encouraged; strong proposals can be added to upcoming milestones
+- near-future direction includes plugin/extension injection support for developer workflows
 
 ## Platform roadmap
 
