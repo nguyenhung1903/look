@@ -1,5 +1,7 @@
 # look
 
+![look icon](assets/icon.png)
+
 A minimal, rofi-inspired macOS launcher focused on fast local actions:
 
 - launch installed apps
@@ -26,7 +28,7 @@ Compared with larger launcher ecosystems (for example Raycast, Alfred, and simil
 
 If you want a minimal launcher that stays fast and predictable, `look` is built for that.
 
-User-level behavior can be configured with `~/.look.config` (indexing + UI theme/font; see `docs/user-guide.md` for supported keys).
+User-level behavior can be configured with `~/.look.config` (indexing + UI theme/font; see [User Guide](docs/user-guide.md) for supported keys).
 
 Indexing config supports include roots plus exclude rules for both apps and files.
 
@@ -58,13 +60,14 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - Rust core workspace is initialized under `core/`.
 - FFI bridge crate is initialized under `bridge/ffi/`.
 - Architecture, roadmap, and initial design decisions are documented under `docs/`.
-- UI currently includes: borderless launcher window, theme/settings panel, command mode, and keyboard-first navigation.
- - UI currently includes: spotlight-style launcher window, theme/settings panel, command mode, and keyboard-first navigation.
+- UI currently includes: spotlight-style launcher window, theme/settings panel, command mode, and keyboard-first navigation.
 - Backend currently includes: SQLite-backed candidate storage, dynamic app/settings/file indexing, and usage event logging.
-- User-facing guide: `docs/user-guide.md`.
-- Backend contributor guide: `docs/backend-guide.md`.
-- Feature planning: `docs/features.md`.
-- Task breakdown: `docs/tasks.md`.
+- User-facing guide: [docs/user-guide.md](docs/user-guide.md).
+- Backend contributor guide: [docs/backend-guide.md](docs/backend-guide.md).
+- Feature planning: [docs/features.md](docs/features.md).
+- Task breakdown: [docs/tasks.md](docs/tasks.md).
+- Architecture notes: [docs/architecture.md](docs/architecture.md).
+- Release secrets checklist: [docs/release-secrets.md](docs/release-secrets.md).
 
 ## Current keyboard UX
 
@@ -181,5 +184,5 @@ MIT
 
 ## Community
 
-- Contributing guide: `CONTRIBUTING.md`
-- Issue templates: `.github/ISSUE_TEMPLATE/`
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Issue templates: [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/)
