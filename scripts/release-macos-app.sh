@@ -28,6 +28,8 @@ xcodebuild \
   -scheme "$SCHEME" \
   -configuration "$CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA" \
+  MARKETING_VERSION="$VERSION" \
+  CURRENT_PROJECT_VERSION="$VERSION" \
   build >/dev/null
 
 if [[ ! -d "$APP_PATH" ]]; then
