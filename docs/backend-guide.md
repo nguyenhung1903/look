@@ -33,12 +33,17 @@ On action execution:
 ## `core/engine`
 
 - `core/engine/src/lib.rs`
-  - query orchestration
-  - ranking composition
   - SQLite load/refresh integration
+  - bootstrap/runtime entry points
 - `core/engine/src/config.rs`
   - centralized constants/tunables
   - scan roots, depth, limits, score weights, query hints
+- `core/engine/src/query.rs`
+  - query parsing and prefix handling
+- `core/engine/src/scoring.rs`
+  - scoring helpers and top-k selection helpers
+- `core/engine/src/search.rs`
+  - search pipeline composition (match -> rank -> top-N)
 - `core/engine/src/index/mod.rs`
   - index orchestration entry (`discover_candidates`)
 - `core/engine/src/index/apps.rs`
@@ -59,8 +64,17 @@ On action execution:
 ## `bridge/ffi`
 
 - `bridge/ffi/src/lib.rs`
-  - C ABI surface used by Swift
-  - current APIs include search JSON, usage recording, and runtime config reload
+  - C ABI export surface used by Swift
+- `bridge/ffi/src/state.rs`
+  - engine cache, bootstrap refresh, cstring allocation/free helpers
+- `bridge/ffi/src/search_api.rs`
+  - search JSON/count endpoints
+- `bridge/ffi/src/usage_api.rs`
+  - usage event endpoint
+- `bridge/ffi/src/translate_api.rs`
+  - translation endpoint and structured translation errors
+- `bridge/ffi/src/runtime_config.rs`
+  - runtime config loading (`~/.look.config` + env overrides), logging/privacy controls
 
 ## Where to change behavior
 
@@ -89,7 +103,7 @@ Then update source-specific logic in:
 Runtime overrides are also supported through `~/.look.config` (or `LOOK_CONFIG_PATH`).
 
 - format: one `key=value` per line (`#` starts a comment)
-- supported keys: `app_scan_roots`, `app_scan_depth`, `file_scan_roots`, `file_scan_depth`, `file_scan_limit`, `skip_dir_names`
+- supported backend keys: `app_scan_roots`, `app_scan_depth`, `app_exclude_paths`, `app_exclude_names`, `file_scan_roots`, `file_scan_depth`, `file_scan_limit`, `file_exclude_paths`, `skip_dir_names`, `translate_allow_network`, `backend_log_level`, `launch_at_login`
 - unknown keys are ignored; invalid values fall back to defaults
 - file is auto-created with defaults on first launch if missing
 - app can reload config at runtime via `Cmd+Shift+;`

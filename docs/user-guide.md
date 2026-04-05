@@ -71,9 +71,12 @@ Install target:
 - launch once from Finder or Spotlight, then test global hotkey (`Cmd+Space`, if available)
 - if app does not open from hotkey, check the Spotlight conflict section below
 
-## Author
+### Enable `Cmd+Space` for look
 
-- kunkka07xx
+- open `System Settings` -> `Keyboard` -> `Keyboard Shortcuts...` -> `Spotlight`
+- disable `Show Spotlight search` or rebind it to another shortcut
+- relaunch look and test `Cmd+Space`
+- optional: enable `launch_at_login=true` (Advanced tab) so look is ready after sign-in
 
 ### Uninstall
 
@@ -189,6 +192,7 @@ Spotlight-style behavior:
 
 - launcher hides on `Escape` from normal app/file list
 - launcher also hides automatically when app loses focus
+- launcher runs as accessory app (hidden from `Cmd+Tab` app switcher)
 
 Available commands:
 
@@ -227,18 +231,12 @@ Settings are shown inside the same launcher window and include:
 Global hotkey:
 
 - launcher hotkey is `Cmd+Space` (Spotlight-style toggle)
-- if Spotlight still uses `Cmd+Space`, remap or disable Spotlight shortcut in macOS Keyboard Shortcuts first
+- configure Spotlight conflict in the Installation section above
 
 Hotkey behavior notes:
 
 - `Cmd+Space` only works when Spotlight is not bound to the same shortcut
 - window managers (for example tiling tools) may alter focus behavior; if focus looks stuck, press the hotkey again or click inside the launcher to refocus
-
-Troubleshooting `Cmd+Space` conflict:
-
-- open `System Settings` -> `Keyboard` -> `Keyboard Shortcuts...` -> `Spotlight`
-- disable `Show Spotlight search` or rebind it to a different shortcut
-- reopen look and test `Cmd+Space` again
 
 Troubleshooting first-run launch block (Gatekeeper):
 
@@ -366,6 +364,8 @@ ui_border_opacity=0.12
 - `Shift+Escape`: hide launcher
 - `Cmd+Enter`: search query on Google
 - `Cmd+Escape`: back to command list (`calc`) while staying in command mode
+- `Cmd+Q`: hide launcher
+- `Cmd+Option+Q`: quit app
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
 - `Cmd+-`: zoom out (temporary UI scale)
@@ -391,13 +391,7 @@ look is built for:
 
 It is not trying to be a full plugin ecosystem or cloud assistant. The core goal is speed, clarity, and predictable local behavior.
 
-## Planned features
-
-- **App preview**: 2-column layout with icon/name on left, info/preview on right
-- **System info command**: `/sys` command for model, macOS, memory, CPU usage, battery, uptime, and disk
-- **Homebrew release**: Installation via homebrew
-
-Roadmap style:
+## Roadmap style:
 
 - look will continue to add features that keep the launcher simple, fast, and local-first
 - user ideas are encouraged; strong proposals can be added to upcoming milestones
@@ -408,3 +402,7 @@ Roadmap style:
 - current focus: macOS
 - planned next platform: Windows
 - Linux is not a near-term target; existing Linux launcher tooling (for example `rofi`) already serves similar use cases well
+
+## Author
+
+- Kunkka

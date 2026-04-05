@@ -12,7 +12,7 @@ Default behavior:
 
 - translate text with `t"word` + `Enter`
 - web search handoff with `Cmd+Enter` (Google)
-- force quit apps with `/kill`
+- force-quit flow in command mode (`kill`)
 
 The project is designed around low latency, keyboard-first interaction, and a small native footprint.
 
@@ -54,20 +54,19 @@ Indexing config supports include roots plus exclude rules for both apps and file
 └── examples/
 ```
 
-## Current starter status
+## Current status
 
 - Swift macOS app scaffold is located at `apps/macos/LauncherApp/look-app/` with project file `apps/macos/LauncherApp/look-app.xcodeproj`.
 - Rust core workspace is initialized under `core/`.
 - FFI bridge crate is initialized under `bridge/ffi/`.
 - Architecture, roadmap, and initial design decisions are documented under `docs/`.
-- UI currently includes: spotlight-style launcher window, theme/settings panel, command mode, and keyboard-first navigation.
+- UI includes: Spotlight-style launcher window (hidden from `Cmd+Tab`), theme/settings panel, command mode, and keyboard-first navigation.
 - Backend currently includes: SQLite-backed candidate storage, dynamic app/settings/file indexing, and usage event logging.
 - User-facing guide: [docs/user-guide.md](docs/user-guide.md).
 - Backend contributor guide: [docs/backend-guide.md](docs/backend-guide.md).
 - Feature planning: [docs/features.md](docs/features.md).
 - Task breakdown: [docs/tasks.md](docs/tasks.md).
 - Architecture notes: [docs/architecture.md](docs/architecture.md).
-- Release secrets checklist: [docs/release-secrets.md](docs/release-secrets.md).
 
 ## Current keyboard UX
 
@@ -78,6 +77,8 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - `Shift+Escape`: hide launcher
 - `Cmd+1` / `Cmd+2` / `Cmd+3`: switch command directly
 - `Cmd+Esc`: back to command list (`calc`) while staying in command mode
+- `Cmd+Q`: hide launcher (Spotlight-style safety)
+- `Cmd+Option+Q`: quit app
 - `Enter`: launch selected app, execute active command, translate (if `t"...`), or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
@@ -93,11 +94,15 @@ Homebrew tap (recommended once release is published):
 ```bash
 brew tap kunkka19xx/tap
 brew install --cask look
-look -v
-look --help
 ```
 
-Unsigned release note:
+Enable `Cmd+Space` for look (recommended):
+
+- open `System Settings` -> `Keyboard` -> `Keyboard Shortcuts...` -> `Spotlight`
+- disable `Show Spotlight search` or rebind it to another shortcut
+- open look once, then use `Cmd+Space` as launcher toggle
+
+**Unsigned release note:**
 
 - if the app is not Developer ID signed/notarized, macOS Gatekeeper may block first launch
 - first-run bypass: right-click `Look.app` -> `Open` -> confirm, or use `System Settings` -> `Privacy & Security` -> `Open Anyway`
@@ -188,6 +193,15 @@ Out of scope for v1:
 - semantic/vector search
 - content indexing
 
+## Documentation
+
+- User guide: [docs/user-guide.md](docs/user-guide.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Features plan: [docs/features.md](docs/features.md)
+- Backend guide: [docs/backend-guide.md](docs/backend-guide.md)
+- Homebrew release notes: [docs/homebrew-release.md](docs/homebrew-release.md)
+- Task tracking: [docs/tasks.md](docs/tasks.md)
+
 ## License
 
 MIT
@@ -199,4 +213,4 @@ MIT
 
 ## Author
 
-- kunkka07xx
+- Kunkka

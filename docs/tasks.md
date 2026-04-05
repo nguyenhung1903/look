@@ -87,7 +87,7 @@ Later:
 ## Backlog: UI Enhancements
 
 - [x] **App list preview**: 2-column layout with icon/name on left, info/preview on right (image preview, app info)
-- [x] **System info command**: Add `/sys` command to view system info (memory, CPU with usage %, battery, uptime, disk), zoomable with app font size
+- [x] **System info command**: Add `sys` command mode screen for model, memory, CPU usage, battery, uptime, and disk
 - [x] **Command list 2-column**: Make command list 2-column layout for better visibility
 - [ ] **Homebrew release**: Package app for homebrew installation
 - [x] **Build script**: Create release build and curl installer script

@@ -14,7 +14,8 @@ Users want quick utility actions (math and shell) without leaving the launcher f
 - Default selected command is `calc`.
 - Support command switching with `Tab` / `Shift+Tab`.
 - Keep command input when switching command type.
-- `Esc` hides launcher (Spotlight-like behavior).
+- `Esc` exits command mode back to app list.
+- `Shift+Esc` hides launcher.
 
 ## Consequences
 

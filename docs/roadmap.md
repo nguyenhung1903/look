@@ -25,10 +25,16 @@
 
 - settings UI (hotkey, indexed paths, excludes)
 - integrated settings/docs panel for UX customization
-- command mode expansion (`/calc`, `/shell`, future commands)
+- command mode expansion (`calc`, `shell`, `kill`, `sys`, future commands)
 - launch at login
 - packaging and release workflow
 - contributor-oriented docs
+
+## Phase 5: extensibility and platform growth
+
+- optional plugin/extension injection model for developer workflows
+- evaluate community proposals and fold high-value ideas into core roadmap
+- Windows exploration after macOS release quality stabilizes
 
 ## Continuous track (ongoing)
 

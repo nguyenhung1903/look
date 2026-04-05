@@ -27,11 +27,14 @@ Core Engine (Rust)
 ## Engine internals
 
 - `core/engine/src/config.rs`: centralized engine tunables (scan roots, limits, ranking weights)
+- `core/engine/src/query.rs`: query parsing and prefix handling (`a"`, `f"`, `d"`, `r"`)
+- `core/engine/src/scoring.rs`: scoring helpers, biases/penalties, top-k heap helpers
+- `core/engine/src/search.rs`: search pipeline orchestration
 - `core/engine/src/index/apps.rs`: installed app discovery
 - `core/engine/src/index/settings.rs`: System Settings entry discovery
 - `core/engine/src/index/files.rs`: local file/folder discovery
 - `core/engine/src/index/mod.rs`: discovery orchestration
-- `core/engine/src/lib.rs`: search/ranking orchestration and storage integration
+- `core/engine/src/lib.rs`: bootstrap/storage integration and test coverage
 
 ## Optional web search action
 
@@ -43,6 +46,7 @@ Core Engine (Rust)
 
 - `Cmd+/` enters command mode
 - command mode currently supports `calc` and `shell`
+- command mode also includes `kill` and `sys`
 - `calc` supports live result preview and 4-decimal formatted output
 - `shell` executes command text and returns stdout/stderr summary
 - shell commands containing `sudo` trigger an orange warning border
@@ -54,12 +58,13 @@ Core Engine (Rust)
 - global hotkey `Cmd+Space` toggles launcher visibility (when not intercepted by Spotlight)
 - `Escape` hides launcher when not in command mode
 - launcher auto-hides on focus loss
+- app uses accessory activation behavior (hidden from `Cmd+Tab` app switcher)
 
 ## Settings panel
 
 - `Cmd+Shift+,` toggles in-app settings/docs panel
 - appearance controls: tint color, blur style, blur opacity
-- advanced controls: background image, indexing depth/limit, translation network privacy, backend log level
+- advanced controls: background image, indexing depth/limit, translation network privacy, backend log level, launch-at-login
 - settings are persisted locally
 
 ## Query pipeline

@@ -17,7 +17,7 @@ This page defines the near-term feature scope for `look` and how each feature ma
 ### Current
 
 - app search UI
-- command mode shell/calc UI flow
+- command mode (`calc`, `shell`, `kill`, `sys`)
 - settings panel and theme customization
 - SQLite-backed candidate persistence and usage tracking
 - dynamic app/settings/file indexing from backend sources
@@ -27,15 +27,15 @@ This page defines the near-term feature scope for `look` and how each feature ma
 ### Next
 
 - unified result model and action execution
-- configurable index roots and excludes from settings
+- deeper settings sub-page coverage and quality filtering
 
 ## 2) Command mode
 
 ### Current
 
 - `Cmd+/` to enter command mode
-- `calc` and `shell`
-- live calculator preview
+- `calc`, `shell`, `kill`, and `sys`
+- live calculator preview and quick copy result behavior
 - `Esc` exits command mode to app list
 - `Shift+Esc` hides launcher
 
@@ -58,7 +58,7 @@ This page defines the near-term feature scope for `look` and how each feature ma
 ### Current
 
 - settings persisted to `~/.look.config`
-- advanced controls for indexing, translation privacy, and backend log level
+- advanced controls for indexing, translation privacy, backend log level, and launch-at-login
 
 ### Next
 
