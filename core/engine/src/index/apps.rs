@@ -1,4 +1,5 @@
 use crate::config::RuntimeConfig;
+use crate::index::APP_CANDIDATE_ID_PREFIX;
 use look_indexing::{Candidate, CandidateKind};
 use std::collections::HashSet;
 use std::env;
@@ -75,7 +76,7 @@ fn walk_apps(
                 continue;
             }
 
-            let key = format!("app:{}", app_path_str.to_lowercase());
+            let key = format!("{APP_CANDIDATE_ID_PREFIX}{}", app_path_str.to_lowercase());
             if seen.insert(key.clone()) {
                 out.push(Candidate::new(
                     &key,

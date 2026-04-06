@@ -5,6 +5,15 @@ use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const SEARCH_ENGINE_DUCKDUCKGO: &str = "duckduckgo";
+const SEARCH_ENGINE_GOOGLE: &str = "google";
+const SEARCH_ENGINE_BING: &str = "bing";
+
+const SETTINGS_KEY_WEB_SEARCH_ENABLED: &str = "web_search_enabled";
+const SETTINGS_KEY_WEB_SEARCH_ENGINE: &str = "web_search_engine";
+const SETTINGS_TRUE: &str = "true";
+const SETTINGS_FALSE: &str = "false";
+
 #[derive(Default)]
 pub struct InMemorySettingsStore {
     values: HashMap<String, String>,
@@ -57,17 +66,17 @@ pub enum SearchEngine {
 impl SearchEngine {
     pub fn key(self) -> &'static str {
         match self {
-            SearchEngine::DuckDuckGo => "duckduckgo",
-            SearchEngine::Google => "google",
-            SearchEngine::Bing => "bing",
+            SearchEngine::DuckDuckGo => SEARCH_ENGINE_DUCKDUCKGO,
+            SearchEngine::Google => SEARCH_ENGINE_GOOGLE,
+            SearchEngine::Bing => SEARCH_ENGINE_BING,
         }
     }
 
     pub fn from_key(value: &str) -> Self {
         match value {
-            "duckduckgo" => SearchEngine::DuckDuckGo,
-            "google" => SearchEngine::Google,
-            "bing" => SearchEngine::Bing,
+            SEARCH_ENGINE_DUCKDUCKGO => SearchEngine::DuckDuckGo,
+            SEARCH_ENGINE_GOOGLE => SearchEngine::Google,
+            SEARCH_ENGINE_BING => SearchEngine::Bing,
             _ => SearchEngine::Google,
         }
     }
@@ -108,10 +117,13 @@ impl InMemorySettingsStore {
 
     pub fn search_settings(&self) -> SearchSettings {
         let enabled = self
-            .get("web_search_enabled")
-            .map(|value| value == "true")
+            .get(SETTINGS_KEY_WEB_SEARCH_ENABLED)
+            .map(|value| value == SETTINGS_TRUE)
             .unwrap_or(true);
-        let engine = SearchEngine::from_key(self.get("web_search_engine").unwrap_or("google"));
+        let engine = SearchEngine::from_key(
+            self.get(SETTINGS_KEY_WEB_SEARCH_ENGINE)
+                .unwrap_or(SEARCH_ENGINE_GOOGLE),
+        );
         SearchSettings {
             web_search_enabled: enabled,
             web_search_engine: engine,
@@ -120,14 +132,17 @@ impl InMemorySettingsStore {
 
     pub fn set_search_settings(&mut self, settings: SearchSettings) {
         self.set(
-            "web_search_enabled",
+            SETTINGS_KEY_WEB_SEARCH_ENABLED,
             if settings.web_search_enabled {
-                "true"
+                SETTINGS_TRUE
             } else {
-                "false"
+                SETTINGS_FALSE
             },
         );
-        self.set("web_search_engine", settings.web_search_engine.key());
+        self.set(
+            SETTINGS_KEY_WEB_SEARCH_ENGINE,
+            settings.web_search_engine.key(),
+        );
     }
 }
 
@@ -243,16 +258,21 @@ impl SqliteStore {
 
     pub fn load_search_settings(&self) -> StorageResult<SearchSettings> {
         let mut settings = SearchSettings::default();
-        let mut stmt = self
-            .conn
-            .prepare("SELECT key, value FROM settings WHERE key IN ('web_search_enabled', 'web_search_engine')")?;
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT key, value FROM settings WHERE key IN ('{}', '{}')",
+            SETTINGS_KEY_WEB_SEARCH_ENABLED, SETTINGS_KEY_WEB_SEARCH_ENGINE
+        ))?;
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
             let key: String = row.get(0)?;
             let value: String = row.get(1)?;
             match key.as_str() {
-                "web_search_enabled" => settings.web_search_enabled = value == "true",
-                "web_search_engine" => settings.web_search_engine = SearchEngine::from_key(&value),
+                SETTINGS_KEY_WEB_SEARCH_ENABLED => {
+                    settings.web_search_enabled = value == SETTINGS_TRUE
+                }
+                SETTINGS_KEY_WEB_SEARCH_ENGINE => {
+                    settings.web_search_engine = SearchEngine::from_key(&value)
+                }
                 _ => {}
             }
         }
@@ -266,18 +286,21 @@ impl SqliteStore {
             "INSERT INTO settings(key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             params![
-                "web_search_enabled",
+                SETTINGS_KEY_WEB_SEARCH_ENABLED,
                 if settings.web_search_enabled {
-                    "true"
+                    SETTINGS_TRUE
                 } else {
-                    "false"
+                    SETTINGS_FALSE
                 }
             ],
         )?;
         tx.execute(
             "INSERT INTO settings(key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params!["web_search_engine", settings.web_search_engine.key()],
+            params![
+                SETTINGS_KEY_WEB_SEARCH_ENGINE,
+                settings.web_search_engine.key()
+            ],
         )?;
         tx.commit()?;
         Ok(())
@@ -358,22 +381,12 @@ fn percent_encode_query(value: &str) -> String {
 }
 
 fn kind_key(kind: &CandidateKind) -> &'static str {
-    match kind {
-        CandidateKind::App => "app",
-        CandidateKind::File => "file",
-        CandidateKind::Folder => "folder",
-    }
+    kind.as_str()
 }
 
 fn parse_kind(value: &str) -> StorageResult<CandidateKind> {
-    match value {
-        "app" => Ok(CandidateKind::App),
-        "file" => Ok(CandidateKind::File),
-        "folder" => Ok(CandidateKind::Folder),
-        other => Err(StorageError::Data(format!(
-            "unknown candidate kind: {other}"
-        ))),
-    }
+    CandidateKind::from_key(value)
+        .ok_or_else(|| StorageError::Data(format!("unknown candidate kind: {value}")))
 }
 
 #[cfg(test)]

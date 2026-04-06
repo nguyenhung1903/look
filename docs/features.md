@@ -22,7 +22,9 @@ This page defines the near-term feature scope for `look` and how each feature ma
 - SQLite-backed candidate persistence and usage tracking
 - dynamic app/settings/file indexing from backend sources
 - query prefixes: `a"` apps, `f"` files, `d"` folders, `r"` regex
+- query prefix: `c"` for clipboard history (latest 10 text clips)
 - slash-path query bias (example: `git/books-pc`)
+- `Cmd+F` reveal selected app/file/folder in Finder
 
 ### Next
 

@@ -3,6 +3,32 @@ use crate::state::{cstr_to_string, store_json_allocation};
 use std::ffi::CString;
 use std::os::raw::c_char;
 
+const TRANSLATE_URL_PREFIX: &str =
+    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=";
+const TRANSLATE_URL_MIDDLE: &str = "&dt=t&q=";
+const CURL_BIN: &str = "curl";
+const CURL_ARGS_PREFIX: [&str; 4] = ["-s", "-m", "3", "-A"];
+const CURL_USER_AGENT: &str = "Mozilla/5.0";
+
+const ERROR_NETWORK_DISABLED: &str = "translate_network_disabled";
+const ERROR_EMPTY_TEXT: &str = "empty_text";
+const ERROR_REQUEST_FAILED: &str = "translate_request_failed";
+const ERROR_DECODE_FAILED: &str = "translate_decode_failed";
+const ERROR_EXEC_FAILED: &str = "translate_exec_failed";
+const ERROR_PARSE_FAILED: &str = "translate_parse_failed";
+const ERROR_EMPTY_RESULT: &str = "translate_empty_result";
+
+const MESSAGE_NETWORK_DISABLED: &str = "Network translation is disabled. Enable in Advanced settings or set LOOK_TRANSLATE_ALLOW_NETWORK=true.";
+const MESSAGE_EMPTY_TEXT: &str = "Type text after t\" to translate";
+const MESSAGE_REQUEST_FAILED: &str = "Translation request failed";
+const MESSAGE_DECODE_FAILED: &str = "Translation response decode failed";
+const MESSAGE_EXEC_FAILED: &str = "Translation command execution failed";
+const MESSAGE_PARSE_FAILED: &str = "Translation response parse failed";
+const MESSAGE_EMPTY_RESULT: &str = "Translation returned empty result";
+
+const JSON_ERROR_FALLBACK: &str = "{\"error\":\"json error\"}";
+const JSON_TRANSLATE_ERROR_FALLBACK: &str = "{\"original\":\"\",\"translated\":\"\",\"error\":{\"code\":\"unknown\",\"message\":\"Unknown translation error\"}}";
+
 #[derive(serde::Deserialize)]
 struct TranslateResponse(serde_json::Value);
 
@@ -14,74 +40,58 @@ pub(crate) fn look_translate_json_impl(
     let target_lang = cstr_to_string(target_lang);
 
     if !network_translation_allowed() {
-        return translate_error_json(
-            &text,
-            "translate_network_disabled",
-            "Network translation is disabled. Enable in Advanced settings or set LOOK_TRANSLATE_ALLOW_NETWORK=true.",
-        );
+        return translate_error_json(&text, ERROR_NETWORK_DISABLED, MESSAGE_NETWORK_DISABLED);
     }
 
     if text.trim().is_empty() {
-        return translate_error_json(&text, "empty_text", "Type text after t\" to translate");
+        return translate_error_json(&text, ERROR_EMPTY_TEXT, MESSAGE_EMPTY_TEXT);
     }
 
     let encoded_text = urlencodingencode(&text);
-    let url = format!(
-        "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",
-        target_lang, encoded_text
+    let mut url = String::with_capacity(
+        TRANSLATE_URL_PREFIX.len()
+            + TRANSLATE_URL_MIDDLE.len()
+            + target_lang.len()
+            + encoded_text.len(),
     );
+    url.push_str(TRANSLATE_URL_PREFIX);
+    url.push_str(&target_lang);
+    url.push_str(TRANSLATE_URL_MIDDLE);
+    url.push_str(&encoded_text);
 
-    let output = std::process::Command::new("curl")
-        .args(["-s", "-m", "3", "-A", "Mozilla/5.0", &url])
+    let output = std::process::Command::new(CURL_BIN)
+        .args(CURL_ARGS_PREFIX)
+        .arg(CURL_USER_AGENT)
+        .arg(&url)
         .output();
 
     let body = match output {
         Ok(out) => {
             if !out.status.success() {
-                return translate_error_json(
-                    &text,
-                    "translate_request_failed",
-                    "Translation request failed",
-                );
+                return translate_error_json(&text, ERROR_REQUEST_FAILED, MESSAGE_REQUEST_FAILED);
             }
             match String::from_utf8(out.stdout) {
                 Ok(s) => s,
                 Err(_) => {
-                    return translate_error_json(
-                        &text,
-                        "translate_decode_failed",
-                        "Translation response decode failed",
-                    );
+                    return translate_error_json(&text, ERROR_DECODE_FAILED, MESSAGE_DECODE_FAILED);
                 }
             }
         }
         Err(_) => {
-            return translate_error_json(
-                &text,
-                "translate_exec_failed",
-                "Translation command execution failed",
-            );
+            return translate_error_json(&text, ERROR_EXEC_FAILED, MESSAGE_EXEC_FAILED);
         }
     };
 
     let parsed: TranslateResponse = match serde_json::from_str(&body) {
         Ok(p) => p,
         Err(_) => {
-            return translate_error_json(
-                &text,
-                "translate_parse_failed",
-                "Translation response parse failed",
-            );
+            return translate_error_json(&text, ERROR_PARSE_FAILED, MESSAGE_PARSE_FAILED);
         }
     };
 
     let translated = parse_translate_response(&parsed.0);
     if translated.trim().is_empty() {
-        return translate_error_json(
-            &text,
-            "translate_empty_result",
-            "Translation returned empty result",
-        );
+        return translate_error_json(&text, ERROR_EMPTY_RESULT, MESSAGE_EMPTY_RESULT);
     }
 
     let result = serde_json::json!({
@@ -90,8 +100,7 @@ pub(crate) fn look_translate_json_impl(
         "error": null
     });
 
-    let json =
-        serde_json::to_string(&result).unwrap_or_else(|_| "{\"error\":\"json error\"}".to_string());
+    let json = serde_json::to_string(&result).unwrap_or_else(|_| JSON_ERROR_FALLBACK.to_string());
     let cstring = CString::new(json).expect("valid json");
     store_json_allocation(cstring)
 }
@@ -105,9 +114,8 @@ fn translate_error_json(text: &str, code: &'static str, message: &str) -> *mut c
             "message": message,
         }
     });
-    let json = serde_json::to_string(&payload).unwrap_or_else(|_| {
-        "{\"original\":\"\",\"translated\":\"\",\"error\":{\"code\":\"unknown\",\"message\":\"Unknown translation error\"}}".to_string()
-    });
+    let json = serde_json::to_string(&payload)
+        .unwrap_or_else(|_| JSON_TRANSLATE_ERROR_FALLBACK.to_string());
     let cstring = CString::new(json).expect("valid json");
     store_json_allocation(cstring)
 }

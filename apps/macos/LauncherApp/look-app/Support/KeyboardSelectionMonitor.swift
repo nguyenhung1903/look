@@ -14,6 +14,9 @@ final class KeyboardSelectionMonitor {
         inCommandMode: @escaping () -> Bool,
         onBackToCommandList: @escaping () -> Void,
         onWebSearch: @escaping () -> Void,
+        onRevealInFinder: @escaping () -> Void,
+        onToggleHelp: @escaping () -> Void,
+        onDismissHelpIfVisible: @escaping () -> Bool,
         onSelectCommandByIndex: @escaping (Int) -> Void,
         onConfirmKill: (() -> Void)? = nil,
         onCancelKill: (() -> Void)? = nil,
@@ -38,6 +41,20 @@ final class KeyboardSelectionMonitor {
 
             if (event.keyCode == 36 || event.keyCode == 76) && flags == [.command] {
                 onWebSearch()
+                return nil
+            }
+
+            if (event.keyCode == 3 || event.charactersIgnoringModifiers?.lowercased() == "f")
+                && flags == [.command]
+            {
+                onRevealInFinder()
+                return nil
+            }
+
+            if (event.keyCode == 4 || event.charactersIgnoringModifiers?.lowercased() == "h")
+                && flags == [.command]
+            {
+                onToggleHelp()
                 return nil
             }
 
@@ -68,6 +85,10 @@ final class KeyboardSelectionMonitor {
             }
 
             if event.keyCode == 53 {
+                if onDismissHelpIfVisible() {
+                    return nil
+                }
+
                 if killConfirmationActive() {
                     onCancelKill?()
                     return nil

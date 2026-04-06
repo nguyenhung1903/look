@@ -1,6 +1,7 @@
 pub mod action;
 pub mod config;
 pub mod index;
+mod normalize;
 mod query;
 pub mod result;
 mod scoring;
@@ -221,6 +222,20 @@ mod tests {
         let engine = sample_engine();
         let results = engine.search_scored("r\"([", 10);
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn vietnamese_diacritics_query_matches_ascii_titles() {
+        let engine = QueryEngine::new(vec![Candidate::new(
+            "app.terminal",
+            CandidateKind::App,
+            "Terminal",
+            "/System/Applications/Utilities/Terminal.app",
+        )]);
+
+        let results = engine.search_scored("tẻrminal", 10);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0.id, "app.terminal");
     }
 
     #[test]
