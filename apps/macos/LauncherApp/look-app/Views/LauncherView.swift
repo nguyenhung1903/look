@@ -53,23 +53,49 @@ struct LauncherView: View {
 
     private let commandCatalog: [AppCommand] = AppConstants.Launcher.commandCatalog
 
-    private var normalizedPinnedLookupQuery: String? {
-        var normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    private enum PinnedLookupScope {
+        case unscoped
+        case apps
+        case files
+        case folders
+        case disabled
+    }
 
-        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.apps) {
-            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.apps.count))
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } else if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files) {
-            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.files.count))
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } else if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders) {
-            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.folders.count))
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+    private var pinnedLookupScope: PinnedLookupScope {
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.regex)
             || normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.clipboard)
         {
+            return .disabled
+        }
+        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.apps) {
+            return .apps
+        }
+        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files) {
+            return .files
+        }
+        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders) {
+            return .folders
+        }
+        return .unscoped
+    }
+
+    private var normalizedPinnedLookupQuery: String? {
+        var normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if pinnedLookupScope == .apps, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.apps) {
+            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.apps.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if pinnedLookupScope == .files, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files) {
+            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.files.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if pinnedLookupScope == .folders, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders) {
+            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.folders.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if pinnedLookupScope == .disabled {
             return nil
         }
 
@@ -78,6 +104,7 @@ struct LauncherView: View {
     }
 
     private var shouldInjectFinderResult: Bool {
+        guard pinnedLookupScope == .unscoped || pinnedLookupScope == .apps else { return false }
         guard let normalized = normalizedPinnedLookupQuery else { return false }
         let finderName = AppConstants.Launcher.Finder.appName
         return normalized.contains(finderName)
@@ -85,6 +112,7 @@ struct LauncherView: View {
     }
 
     private var quickFolderPinnedResults: [LauncherResult] {
+        guard pinnedLookupScope == .unscoped || pinnedLookupScope == .folders else { return [] }
         guard let normalized = normalizedPinnedLookupQuery else { return [] }
 
         return AppConstants.Launcher.QuickFolder.entries.compactMap { entry in
