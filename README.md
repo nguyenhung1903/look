@@ -8,6 +8,10 @@ A minimal, rofi-inspired macOS launcher focused on fast local actions:
 - search local files and folders by name
 - quick command mode for calculator, shell, kill, and system info
 
+**Introduction video:**
+
+[Video](https://www.youtube.com/watch?v=XtGcLfmXePU)
+
 Default behavior:
 
 - translate text with `t"word` + `Enter`
