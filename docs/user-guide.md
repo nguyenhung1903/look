@@ -144,6 +144,7 @@ This includes:
 - press `Shift+Tab` to move up the list
 - press `Up` / `Down` to move selection
 - press `Enter` to open the selected result
+- press `Cmd+C` to copy selected file/folder to pasteboard
 - press `Cmd+F` to reveal selected app/file/folder in Finder
 - press `Cmd+H` to open/close the in-window shortcut help screen
 - click a row to open it
@@ -388,6 +389,7 @@ ui_border_opacity=0.12
 - `Escape`: back to app list (in command mode), otherwise hide launcher
 - `Shift+Escape`: hide launcher
 - `Cmd+Enter`: search query on Google
+- `Cmd+C`: copy selected file/folder to pasteboard
 - `Cmd+F`: reveal selected app/file/folder in Finder
 - `Cmd+Escape`: back to command list (`calc`) while staying in command mode
 - `Cmd+Q`: hide launcher

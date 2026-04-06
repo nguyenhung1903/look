@@ -479,6 +479,7 @@ private enum ShortcutDocs {
                 ShortcutItem(keys: "Tab", action: "Select next result"),
                 ShortcutItem(keys: "Shift+Tab", action: "Select previous result"),
                 ShortcutItem(keys: "Up / Down", action: "Move selection"),
+                ShortcutItem(keys: "Cmd+C", action: "Copy selected file/folder to pasteboard"),
                 ShortcutItem(keys: "Cmd+F", action: "Reveal selected app/file/folder in Finder"),
                 ShortcutItem(keys: "Cmd+Enter", action: "Search query on Google"),
                 ShortcutItem(keys: "Cmd+/", action: "Enter command mode"),

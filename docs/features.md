@@ -24,6 +24,7 @@ This page defines the near-term feature scope for `look` and how each feature ma
 - query prefixes: `a"` apps, `f"` files, `d"` folders, `r"` regex
 - query prefix: `c"` for clipboard history (latest 10 text clips)
 - slash-path query bias (example: `git/books-pc`)
+- `Cmd+C` copy selected file/folder to pasteboard
 - `Cmd+F` reveal selected app/file/folder in Finder
 
 ### Next

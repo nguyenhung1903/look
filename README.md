@@ -56,21 +56,11 @@ Indexing config supports include roots plus exclude rules for both apps and file
 ├── bridge/
 │   └── ffi/
 ├── docs/
-├── benchmarks/
 ├── scripts/
-├── assets/
-└── examples/
+└── assets/
 ```
 
-## Current status
-
-- Swift macOS app scaffold is located at `apps/macos/LauncherApp/look-app/` with project file `apps/macos/LauncherApp/look-app.xcodeproj`.
-- Rust core workspace is initialized under `core/`.
-- FFI bridge crate is initialized under `bridge/ffi/`.
-- Architecture, roadmap, and initial design decisions are documented under `docs/`.
-- UI includes: Spotlight-style launcher window (hidden from `Cmd+Tab`), theme/settings panel, command mode, and keyboard-first navigation.
-
-Look's UI:
+## UI
 
 ![Look UI 1](assets/look-ui/1.png)
 
@@ -83,6 +73,15 @@ Look's UI:
 ![Look UI 5](assets/look-ui/5.png)
 
 ![Look UI 6](assets/look-ui/6.png)
+
+## Current status
+
+- Swift macOS app scaffold is located at `apps/macos/LauncherApp/look-app/` with project file `apps/macos/LauncherApp/look-app.xcodeproj`.
+- Rust core workspace is initialized under `core/`.
+- FFI bridge crate is initialized under `bridge/ffi/`.
+- Benchmark example lives at `core/engine/examples/perf_bench.rs`.
+- Architecture, roadmap, and initial design decisions are documented under `docs/`.
+- UI includes: Spotlight-style launcher window (hidden from `Cmd+Tab`), theme/settings panel, command mode, and keyboard-first navigation.
 
 - Backend currently includes: SQLite-backed candidate storage, dynamic app/settings/file indexing, and usage event logging.
 - User-facing guide: [docs/user-guide.md](docs/user-guide.md).
@@ -105,6 +104,7 @@ Look's UI:
 - `Enter`: launch selected app, execute active command, or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
+- `Cmd+C`: copy selected file/folder to pasteboard
 - `Cmd+F`: reveal selected app/file/folder in Finder
 - `a"` / `f"` / `d"` / `r"`: apps/files/folders/regex scoped query prefix
 - `c"`: clipboard history scoped query prefix

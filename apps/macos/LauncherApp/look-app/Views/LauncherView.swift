@@ -53,25 +53,89 @@ struct LauncherView: View {
 
     private let commandCatalog: [AppCommand] = AppConstants.Launcher.commandCatalog
 
-    private var shouldInjectFinderResult: Bool {
-        var normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let appsPrefix = AppConstants.Launcher.QueryPrefix.apps
-        if normalized.hasPrefix(appsPrefix) {
-            normalized = String(normalized.dropFirst(appsPrefix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+    private enum PinnedLookupScope {
+        case unscoped
+        case apps
+        case files
+        case folders
+        case disabled
+    }
 
-        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files)
-            || normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders)
-            || normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.regex)
+    private var pinnedLookupScope: PinnedLookupScope {
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.regex)
             || normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.clipboard)
         {
-            return false
+            return .disabled
+        }
+        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.apps) {
+            return .apps
+        }
+        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files) {
+            return .files
+        }
+        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders) {
+            return .folders
+        }
+        return .unscoped
+    }
+
+    private var normalizedPinnedLookupQuery: String? {
+        var normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if pinnedLookupScope == .apps, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.apps) {
+            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.apps.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if pinnedLookupScope == .files, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files) {
+            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.files.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if pinnedLookupScope == .folders, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders) {
+            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.folders.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        guard !normalized.isEmpty else { return false }
+        if pinnedLookupScope == .disabled {
+            return nil
+        }
+
+        guard !normalized.isEmpty else { return nil }
+        return normalized
+    }
+
+    private var shouldInjectFinderResult: Bool {
+        guard pinnedLookupScope == .unscoped || pinnedLookupScope == .apps else { return false }
+        guard let normalized = normalizedPinnedLookupQuery else { return false }
         let finderName = AppConstants.Launcher.Finder.appName
         return normalized.contains(finderName)
             || (finderName.hasPrefix(normalized) && normalized.count >= AppConstants.Launcher.Finder.minPrefixMatchLength)
+    }
+
+    private var quickFolderPinnedResults: [LauncherResult] {
+        guard pinnedLookupScope == .unscoped || pinnedLookupScope == .folders else { return [] }
+        guard let normalized = normalizedPinnedLookupQuery else { return [] }
+
+        return AppConstants.Launcher.QuickFolder.entries.compactMap { entry in
+            let normalizedTitle = entry.title.lowercased()
+            let isMatch = normalizedTitle.contains(normalized)
+                || (normalizedTitle.hasPrefix(normalized)
+                    && normalized.count >= AppConstants.Launcher.QuickFolder.minPrefixMatchLength)
+            guard isMatch else { return nil }
+
+            let folderPath = URL(fileURLWithPath: NSHomeDirectory())
+                .appendingPathComponent(entry.relativePath)
+                .path
+            guard FileManager.default.fileExists(atPath: folderPath) else { return nil }
+
+            return LauncherResult(
+                id: "\(AppConstants.Launcher.QuickFolder.idPrefix)\(normalizedTitle)",
+                kind: .folder,
+                title: entry.title,
+                subtitle: AppConstants.Launcher.QuickFolder.pinnedSubtitle,
+                path: folderPath,
+                score: AppConstants.Launcher.Finder.pinnedScore
+            )
+        }
     }
 
     private var finderPinnedResult: LauncherResult {
@@ -87,6 +151,16 @@ struct LauncherView: View {
 
     private var backendFilteredResults: [LauncherResult] {
         var sourceResults = backendResults
+
+        for quickFolder in quickFolderPinnedResults.reversed() {
+            let alreadyPresent = sourceResults.contains { item in
+                item.kind == .folder && item.path == quickFolder.path
+            }
+            if !alreadyPresent {
+                sourceResults.insert(quickFolder, at: 0)
+            }
+        }
+
         if shouldInjectFinderResult {
             let hasFinder = sourceResults.contains {
                 $0.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == AppConstants.Launcher.Finder.appName
@@ -463,12 +537,17 @@ struct LauncherView: View {
         case .app:
             openTarget(selected.path)
             bridge.recordUsage(candidateID: selected.id, action: "open_app")
+            hideLauncherWindow()
         case .file:
             openTarget(selected.path)
             bridge.recordUsage(candidateID: selected.id, action: "open_file")
+            hideLauncherWindow()
         case .folder:
             openTarget(selected.path)
-            bridge.recordUsage(candidateID: selected.id, action: "open_folder")
+            if !selected.id.hasPrefix(AppConstants.Launcher.QuickFolder.idPrefix) {
+                bridge.recordUsage(candidateID: selected.id, action: "open_folder")
+            }
+            hideLauncherWindow()
         case .clipboard:
             guard let content = selected.clipboardContent, !content.isEmpty else { return }
             NSPasteboard.general.clearContents()
@@ -522,6 +601,28 @@ struct LauncherView: View {
         }
     }
 
+    private func copySelectedResultToPasteboard() -> Bool {
+        guard !isCommandMode,
+              let selectedID = selectedResultID,
+              let selected = displayedResults.first(where: { $0.id == selectedID })
+        else { return false }
+
+        guard selected.kind == .file || selected.kind == .folder else { return false }
+
+        let targetURL = URL(fileURLWithPath: selected.path)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        let didWrite = pasteboard.writeObjects([targetURL as NSURL, selected.path as NSString])
+
+        if didWrite {
+            showBanner("Copied \(selected.kind.rawValue) to pasteboard", style: .success, duration: 1.0)
+        } else {
+            showBanner("Copy failed", style: .error, duration: 1.0)
+        }
+
+        return didWrite
+    }
+
     private func toggleHelpScreen() {
         guard !appUIState.showsThemeSettings else { return }
         guard !isCommandMode else {
@@ -555,6 +656,17 @@ struct LauncherView: View {
             style: .info,
             duration: AppConstants.Launcher.Clipboard.infoBannerDuration
         )
+    }
+
+    private func refreshClipboardSelectionIfNeeded() {
+        guard !isCommandMode, isClipboardQuery else { return }
+
+        if let selectedResultID,
+           displayedResults.contains(where: { $0.id == selectedResultID }) {
+            return
+        }
+
+        selectedResultID = displayedResults.first?.id
     }
 
     private func refreshSearchResults() {
@@ -646,7 +758,7 @@ struct LauncherView: View {
                     window.makeKeyAndOrderFront(nil)
                 } else {
                     window.makeKey()
-                    window.orderFrontRegardless()
+                    window.orderFront(nil)
                 }
 
                 if let responder = findEditableTextField(in: window.contentView) {
@@ -944,6 +1056,9 @@ struct LauncherView: View {
                 }
             }
         }
+        .onReceive(clipboardStore.$entries) { _ in
+            refreshClipboardSelectionIfNeeded()
+        }
         .onChange(of: commandInput) { _, _ in
             if isCommandMode {
                 setInitialSelection()
@@ -1092,6 +1207,9 @@ struct LauncherView: View {
             },
             onRevealInFinder: {
                 revealSelectedInFinder()
+            },
+            onCopySelection: {
+                copySelectedResultToPasteboard()
             },
             onToggleHelp: {
                 toggleHelpScreen()

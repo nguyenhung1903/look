@@ -248,6 +248,7 @@ private enum LauncherHelpContent {
 
     static let mainShortcuts: [(String, String)] = [
         ("Enter", "Open selected app/file/folder or copy selected clipboard item"),
+        ("Cmd+C", "Copy selected file/folder to pasteboard"),
         ("Tab / Shift+Tab", "Move selection"),
         ("Up / Down", "Move selection"),
         ("Cmd+F", "Reveal selected app/file/folder in Finder"),

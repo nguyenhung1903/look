@@ -8,6 +8,11 @@ struct AppCommand: Identifiable {
     let placeholder: String
 }
 
+struct QuickFolderDefinition {
+    let title: String
+    let relativePath: String
+}
+
 enum AppConstants {
     enum Launcher {
         enum Command {
@@ -35,6 +40,17 @@ enum AppConstants {
             static let pinnedScore = 999_999
             static let minPrefixMatchLength = 3
             static let cannotRevealBanner = "Cannot reveal this target in Finder"
+        }
+
+        enum QuickFolder {
+            static let idPrefix = "quickfolder:"
+            static let pinnedSubtitle = "Pinned home folder"
+            static let minPrefixMatchLength = 2
+            static let entries: [QuickFolderDefinition] = [
+                QuickFolderDefinition(title: "Desktop", relativePath: "Desktop"),
+                QuickFolderDefinition(title: "Documents", relativePath: "Documents"),
+                QuickFolderDefinition(title: "Downloads", relativePath: "Downloads"),
+            ]
         }
 
         enum Clipboard {

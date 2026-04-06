@@ -15,6 +15,7 @@ final class KeyboardSelectionMonitor {
         onBackToCommandList: @escaping () -> Void,
         onWebSearch: @escaping () -> Void,
         onRevealInFinder: @escaping () -> Void,
+        onCopySelection: @escaping () -> Bool,
         onToggleHelp: @escaping () -> Void,
         onDismissHelpIfVisible: @escaping () -> Bool,
         onSelectCommandByIndex: @escaping (Int) -> Void,
@@ -49,6 +50,15 @@ final class KeyboardSelectionMonitor {
             {
                 onRevealInFinder()
                 return nil
+            }
+
+            if (event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c")
+                && flags == [.command]
+            {
+                if onCopySelection() {
+                    return nil
+                }
+                return event
             }
 
             if (event.keyCode == 4 || event.charactersIgnoringModifiers?.lowercased() == "h")
