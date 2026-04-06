@@ -1,3 +1,4 @@
+use crate::normalize::normalize_for_search;
 use look_indexing::CandidateKind;
 
 const PREFIX_APPS: u8 = b'a';
@@ -21,7 +22,7 @@ impl ParsedQuery {
 
         if let Some(rest) = strip_prefixed_query(trimmed, PREFIX_FOLDERS) {
             return Self {
-                normalized_query: rest.to_lowercase(),
+                normalized_query: normalize_for_search(rest),
                 raw_query: Some(rest.to_string()),
                 kind_filter: Some(CandidateKind::Folder),
                 is_regex: false,
@@ -30,7 +31,7 @@ impl ParsedQuery {
 
         if let Some(rest) = strip_prefixed_query(trimmed, PREFIX_FILES) {
             return Self {
-                normalized_query: rest.to_lowercase(),
+                normalized_query: normalize_for_search(rest),
                 raw_query: Some(rest.to_string()),
                 kind_filter: Some(CandidateKind::File),
                 is_regex: false,
@@ -39,7 +40,7 @@ impl ParsedQuery {
 
         if let Some(rest) = strip_prefixed_query(trimmed, PREFIX_APPS) {
             return Self {
-                normalized_query: rest.to_lowercase(),
+                normalized_query: normalize_for_search(rest),
                 raw_query: Some(rest.to_string()),
                 kind_filter: Some(CandidateKind::App),
                 is_regex: false,
@@ -56,7 +57,7 @@ impl ParsedQuery {
         }
 
         Self {
-            normalized_query: trimmed.to_lowercase(),
+            normalized_query: normalize_for_search(trimmed),
             raw_query: if trimmed.is_empty() {
                 None
             } else {

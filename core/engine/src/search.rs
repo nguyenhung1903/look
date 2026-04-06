@@ -1,5 +1,6 @@
 use crate::QueryEngine;
 use crate::config::*;
+use crate::normalize::normalize_for_search;
 use crate::query::ParsedQuery;
 use crate::scoring::{
     ScoredMatch, contains_match_score, default_browse_score, finalize_top_k, kind_bias,
@@ -97,21 +98,22 @@ impl QueryEngine {
                 .as_ref()
                 .is_none_or(|kind| &candidate.kind == kind)
         }) {
-            let title_lower = candidate.title.to_lowercase();
-            let subtitle_lower = candidate
+            let title_search = normalize_for_search(&candidate.title);
+            let subtitle_search = candidate
                 .subtitle
                 .as_ref()
-                .map(|subtitle| subtitle.to_lowercase());
+                .map(|subtitle| normalize_for_search(subtitle));
+            let path_search = normalize_for_search(&candidate.path);
 
-            let title_score = fuzzy_score(&normalized_query, &title_lower);
-            let subtitle_score = subtitle_lower
+            let title_score = fuzzy_score(&normalized_query, &title_search);
+            let subtitle_score = subtitle_search
                 .as_ref()
                 .and_then(|subtitle| fuzzy_score(&normalized_query, subtitle))
                 .map(|value| value / 2);
             let contains_score =
-                contains_match_score(&normalized_query, &title_lower, subtitle_lower.as_deref());
+                contains_match_score(&normalized_query, &title_search, subtitle_search.as_deref());
             let path_score = if has_path_hint {
-                path_match_score(&normalized_query, &candidate.path.to_lowercase())
+                path_match_score(&normalized_query, &path_search)
             } else {
                 None
             };
@@ -125,7 +127,7 @@ impl QueryEngine {
                 continue;
             };
 
-            let final_score = rank_score(base, &normalized_query, candidate, &title_lower)
+            let final_score = rank_score(base, &normalized_query, candidate, &title_search)
                 + kind_bias(candidate)
                 + query_kind_penalty(&normalized_query, candidate)
                 + path_depth_penalty(candidate);
