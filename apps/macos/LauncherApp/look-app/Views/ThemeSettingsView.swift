@@ -149,7 +149,7 @@ struct ThemeSettingsView: View {
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
                     .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
 
-                LabeledSlider(title: "Border Thick", value: $settings.borderThickness, range: 0.25...6)
+                LabeledSlider(title: "Border Thick", value: $settings.borderThickness, range: 0...6)
                 LabeledSlider(title: "Border Red", value: $settings.borderRed, range: 0...1)
                 LabeledSlider(title: "Border Green", value: $settings.borderGreen, range: 0...1)
                 LabeledSlider(title: "Border Blue", value: $settings.borderBlue, range: 0...1)

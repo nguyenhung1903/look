@@ -51,7 +51,7 @@ Later:
 - [x] finalize FFI API (`init`, `search`, `record_action`, `translate`)
 - [x] switch SwiftUI launcher from seed data to engine results
 - [x] wire action execution path (open app/path/web, run command)
-- [x] translate text via FFI (`t"word` + Enter)
+- [x] translate text via FFI (network-gated)
 - [x] command mode with `calc`, `shell`, `kill` commands
 - [x] command keyboard shortcuts (Cmd+/, Cmd+1/2/3, Tab, Esc hide, Cmd+Esc)
 - [ ] route settings updates to backend persistence

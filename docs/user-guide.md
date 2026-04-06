@@ -156,7 +156,6 @@ Path-style query is supported directly in normal search:
 
 Quick prefix action in the same input:
 
-- type `t"word or phrase` and press `Enter`: translate text and show the result banner in app
 - type `a"term`: search apps only
 - type `f"term`: search files only
 - type `d"term`: search folders only
@@ -164,10 +163,10 @@ Quick prefix action in the same input:
 
 Translation privacy control:
 
-- network translation is disabled by default
-- enable translation in `Advanced` settings and click `Save Config`
+- translation network access is disabled by default
+- `translate_allow_network` controls whether translation requests are allowed
 - optional env override: `LOOK_TRANSLATE_ALLOW_NETWORK=true`
-- when disabled, `t"...` returns a local warning and does not send text to network
+- recommended default: keep this disabled for a local-first workflow
 
 ### 2) Web search handoff
 
@@ -281,7 +280,7 @@ Backend indexing keys:
 - `file_scan_depth`: recursion depth for file scanning (positive integer); default: `4`
 - `file_scan_limit`: max indexed files per refresh (positive integer); default: `8000`
 - `file_exclude_paths`: comma-separated paths to exclude from file/folder indexing (supports `~/...`, absolute paths, and home-relative names); default: empty
-- `translate_allow_network`: allow network translation requests for `t"...` (`true`/`false`); default: `false`
+- `translate_allow_network`: allow network translation requests (`true`/`false`); default: `false`
 - `backend_log_level`: backend log verbosity (`error`/`info`/`debug`); default: `error`
 - `launch_at_login`: auto-start look after user sign-in (`true`/`false`); default: `true`
 - `skip_dir_names`: comma-separated directory names to ignore during file scan (case-insensitive); default: `node_modules,target,build,dist,library,applications,old firefox data`
@@ -360,7 +359,7 @@ ui_border_opacity=0.12
 
 - `Tab`: next result / next command
 - `Shift+Tab`: previous result / previous command
-- `Enter`: open selected result, run command, translate (if `t"...`), or confirm kill
+- `Enter`: open selected result, run command, or confirm kill
 - `a"`: apps-only search prefix
 - `f"`: files-only search prefix
 - `d"`: folders-only search prefix

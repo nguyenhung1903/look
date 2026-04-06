@@ -488,7 +488,7 @@ struct LauncherView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard token == focusRequestToken else { return }
                 guard !appUIState.showsThemeSettings else { return }
-                guard let window = NSApplication.shared.windows.first else { return }
+                guard let window = launcherWindow() else { return }
 
                 if !window.isVisible {
                     window.makeKeyAndOrderFront(nil)
@@ -504,6 +504,18 @@ struct LauncherView: View {
                 isQueryFocused = true
             }
         }
+    }
+
+    private func launcherWindow() -> NSWindow? {
+        if let keyWindow = NSApplication.shared.keyWindow {
+            return keyWindow
+        }
+
+        if let visibleWindow = NSApplication.shared.windows.first(where: { $0.isVisible }) {
+            return visibleWindow
+        }
+
+        return NSApplication.shared.windows.first
     }
 
     private func findEditableTextField(in view: NSView?) -> NSView? {
@@ -527,7 +539,7 @@ struct LauncherView: View {
     }
 
     private func toggleWindowVisibility() {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window = launcherWindow() else { return }
 
         if window.isVisible && NSApplication.shared.isActive {
             hideLauncherWindow()
@@ -540,7 +552,7 @@ struct LauncherView: View {
     }
 
     private func hideLauncherWindow() {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window = launcherWindow() else { return }
         window.orderOut(nil)
     }
 
@@ -593,6 +605,8 @@ struct LauncherView: View {
     }
 
     var body: some View {
+        let windowCornerRadius = AppConstants.Launcher.windowCornerRadius
+
         ZStack {
             themedBackground
 
@@ -707,18 +721,24 @@ struct LauncherView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .font(themeStore.uiFont())
             .foregroundStyle(themeStore.fontColor())
-            .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture {
                 focusActiveInput()
             }
         }
         .background(Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(), lineWidth: themeStore.borderLineWidth())
-        )
+        .clipShape(RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous))
+        .overlay {
+            let borderWidth = themeStore.borderLineWidth()
+            if borderWidth > 0 {
+                RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous)
+                    .strokeBorder(
+                        hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(),
+                        lineWidth: borderWidth
+                    )
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             Link("© 2026 by Kunkka", destination: URL(string: "https://github.com/kunkka19xx")!)
                 .font(themeStore.uiFont(size: CGFloat(max(9, themeStore.settings.fontSize - 4)), weight: .regular))

@@ -14,8 +14,9 @@ A minimal, rofi-inspired macOS launcher focused on fast local actions:
 
 Default behavior:
 
-- translate text with `t"word` + `Enter`
+- launch top result with `Enter`
 - web search handoff with `Cmd+Enter` (Google)
+- command mode with `Cmd+/` (`calc`, `shell`, `kill`, `sys`)
 - force-quit flow in command mode (`kill`)
 
 The project is designed around low latency, keyboard-first interaction, and a small native footprint.
@@ -35,6 +36,8 @@ If you want a minimal launcher that stays fast and predictable, `look` is built 
 User-level behavior can be configured with `~/.look.config` (indexing + UI theme/font; see [User Guide](docs/user-guide.md) for supported keys).
 
 Indexing config supports include roots plus exclude rules for both apps and files.
+
+## Look's UI
 
 ## Repository layout
 
@@ -65,6 +68,21 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - FFI bridge crate is initialized under `bridge/ffi/`.
 - Architecture, roadmap, and initial design decisions are documented under `docs/`.
 - UI includes: Spotlight-style launcher window (hidden from `Cmd+Tab`), theme/settings panel, command mode, and keyboard-first navigation.
+
+Look's UI:
+
+![Look UI 1](assets/look-ui/1.png)
+
+![Look UI 2](assets/look-ui/2.png)
+
+![Look UI 3](assets/look-ui/3.png)
+
+![Look UI 4](assets/look-ui/4.png)
+
+![Look UI 5](assets/look-ui/5.png)
+
+![Look UI 6](assets/look-ui/6.png)
+
 - Backend currently includes: SQLite-backed candidate storage, dynamic app/settings/file indexing, and usage event logging.
 - User-facing guide: [docs/user-guide.md](docs/user-guide.md).
 - Backend contributor guide: [docs/backend-guide.md](docs/backend-guide.md).
@@ -83,7 +101,7 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - `Cmd+Esc`: back to command list (`calc`) while staying in command mode
 - `Cmd+Q`: hide launcher (Spotlight-style safety)
 - `Cmd+Option+Q`: quit app
-- `Enter`: launch selected app, execute active command, translate (if `t"...`), or confirm kill
+- `Enter`: launch selected app, execute active command, or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
 - `a"` / `f"` / `d"` / `r"`: apps/files/folders/regex scoped query prefix
@@ -200,8 +218,8 @@ In scope for first milestone:
 - query app index and launch with Enter
 - query file/folder name index and open/reveal
 - web search handoff with Google
-- translate text with `t"...`
 - command mode with `calc`, `shell`, `kill`, and `sys`
+- optional translation exists behind network opt-in (`translate_allow_network=true`)
 - predictable, local-first behavior
 
 Out of scope for v1:

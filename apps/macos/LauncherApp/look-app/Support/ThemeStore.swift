@@ -136,7 +136,7 @@ final class ThemeStore: ObservableObject {
     }
 
     func borderLineWidth() -> CGFloat {
-        CGFloat(max(0.25, settings.borderThickness))
+        CGFloat(max(0, settings.borderThickness))
     }
 
     func fontNameSuggestions(for input: String, limit: Int = 8) -> [String] {

@@ -11,6 +11,7 @@ struct AppCommand: Identifiable {
 enum AppConstants {
     enum Launcher {
         static let defaultSearchLimit = 40
+        static let windowCornerRadius: CGFloat = 16
         static let commandListMaxHeight: CGFloat = 180
         static let commandResultFontSize: CGFloat = 18
         static let calcMaxMagnitude = 1_000_000_000_000.0

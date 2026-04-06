@@ -32,7 +32,7 @@ struct WindowConfigurator: NSViewRepresentable {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.isMovableByWindowBackground = true
-        window.hasShadow = true
+        window.hasShadow = false
         window.setContentBorderThickness(0, for: .maxY)
         window.collectionBehavior.insert(.moveToActiveSpace)
         window.collectionBehavior.insert(.fullScreenAuxiliary)
