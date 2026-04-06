@@ -39,5 +39,18 @@ struct WindowConfigurator: NSViewRepresentable {
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
+
+        let cornerRadius = AppConstants.Launcher.windowCornerRadius
+        if let frameView = window.contentView?.superview {
+            frameView.wantsLayer = true
+            frameView.layer?.cornerRadius = cornerRadius
+            frameView.layer?.masksToBounds = true
+        }
+
+        if let contentView = window.contentView {
+            contentView.wantsLayer = true
+            contentView.layer?.cornerRadius = cornerRadius
+            contentView.layer?.masksToBounds = true
+        }
     }
 }

@@ -37,8 +37,6 @@ User-level behavior can be configured with `~/.look.config` (indexing + UI theme
 
 Indexing config supports include roots plus exclude rules for both apps and files.
 
-## Look's UI
-
 ## Repository layout
 
 ```text
