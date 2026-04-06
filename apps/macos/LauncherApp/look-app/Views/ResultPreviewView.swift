@@ -4,12 +4,19 @@ import SwiftUI
 struct ResultPreviewView: View {
     @EnvironmentObject private var themeStore: ThemeStore
     let result: LauncherResult
+    var onDeleteClipboard: (() -> Void)? = nil
 
     private let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic", "webp", "svg", "ico", "pdf"]
     private static let modifiedDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
+        return formatter
+    }()
+    private static let clipboardDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
         return formatter
     }()
 
@@ -21,6 +28,12 @@ struct ResultPreviewView: View {
     private var previewImage: NSImage? {
         guard isImageFile else { return nil }
         return NSImage(contentsOfFile: result.path)
+    }
+
+    private var clipboardIcon: NSImage {
+        NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+            ?? NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
+            ?? NSWorkspace.shared.icon(forFileType: "txt")
     }
 
     private var largeIcon: NSImage {
@@ -80,64 +93,139 @@ struct ResultPreviewView: View {
     }
 
     var body: some View {
+        if result.kind == .clipboard {
+            clipboardPreview
+        } else {
         let info = bundleInfo
 
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Image(nsImage: largeIcon)
-                    .resizable()
-                    .frame(width: 48, height: 48)
-                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(nsImage: largeIcon)
+                        .resizable()
+                        .frame(width: 48, height: 48)
+                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(result.title)
-                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 2), weight: .semibold))
-                        .foregroundStyle(themeStore.fontColor())
-                        .lineLimit(2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(result.title)
+                            .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 2), weight: .semibold))
+                            .foregroundStyle(themeStore.fontColor())
+                            .lineLimit(2)
 
-                    HStack(spacing: 6) {
-                        KindBadge(kind: result.kind.rawValue)
-                        Text(info.size)
-                            .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                        HStack(spacing: 6) {
+                            KindBadge(kind: result.kind.rawValue)
+                            Text(info.size)
+                                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                        }
+                    }
+                    Spacer()
+                }
+
+                if isImageFile, let image = previewImage {
+                    HStack {
+                        Spacer()
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 180)
+                            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                        Spacer()
                     }
                 }
+
+                if let version = info.version {
+                    InfoRow(label: "Version", value: version)
+                }
+
+                InfoRow(label: "Kind", value: result.kind.rawValue.capitalized)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Path")
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                    Text(result.path)
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                        .lineLimit(3)
+                }
+
+                if let modified = info.modified {
+                    InfoRow(label: "Modified", value: modified)
+                }
+
                 Spacer()
             }
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
 
-            if isImageFile, let image = previewImage {
-                HStack {
-                    Spacer()
-                    Image(nsImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 180)
-                        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                    Spacer()
+    private var clipboardPreview: some View {
+        let content = result.clipboardContent ?? ""
+        let capturedAt = result.clipboardCapturedAt.map { Self.clipboardDateFormatter.string(from: $0) } ?? "Unknown"
+        let characterCount = result.clipboardCharacterCount ?? content.count
+        let lineCount = result.clipboardLineCount ?? max(1, content.split(whereSeparator: \.isNewline).count)
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(nsImage: clipboardIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 34, height: 34)
+                    .foregroundStyle(.teal)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Clipboard item")
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 1), weight: .semibold))
+                        .foregroundStyle(themeStore.fontColor())
+                    Text("Captured \(capturedAt)")
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.66))
+                }
+                Spacer()
+
+                if let onDeleteClipboard {
+                    Button {
+                        onDeleteClipboard()
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .buttonStyle(.plain)
+                    .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .semibold))
+                    .foregroundStyle(.red.opacity(0.95))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(.red.opacity(0.14), in: Capsule())
                 }
             }
 
-            if let version = info.version {
-                InfoRow(label: "Version", value: version)
-            }
-
-            InfoRow(label: "Kind", value: result.kind.rawValue.capitalized)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Path")
+            HStack(spacing: 8) {
+                KindBadge(kind: "clipboard")
+                Text("\(characterCount) chars")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
-                Text(result.path)
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                Text("\(lineCount) lines")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
-                    .lineLimit(3)
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
             }
 
-            if let modified = info.modified {
-                InfoRow(label: "Modified", value: modified)
-            }
+            Text("Preview")
+                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .medium))
+                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.62))
 
-            Spacer()
+            ScrollView {
+                Text(content)
+                    .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular, design: .monospaced))
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.88))
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .textSelection(.enabled)
+                    .padding(10)
+            }
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            InfoRow(label: "Kind", value: "Clipboard")
+            InfoRow(label: "Captured", value: capturedAt)
+
+            Spacer(minLength: 0)
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -153,6 +241,7 @@ struct KindBadge: View {
         case "app": return .blue
         case "file": return .green
         case "folder": return .orange
+        case "clipboard": return .teal
         default: return .gray
         }
     }

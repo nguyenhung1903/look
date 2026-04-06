@@ -3,6 +3,8 @@ use look_indexing::{Candidate, CandidateKind};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
+const SETTINGS_SUBTITLE_PREFIX: &str = "System Settings";
+
 pub(crate) fn contains_match_score(
     query: &str,
     title: &str,
@@ -88,7 +90,7 @@ pub(crate) fn query_kind_penalty(query: &str, candidate: &Candidate) -> i64 {
                     .subtitle
                     .as_deref()
                     .unwrap_or("")
-                    .contains("System Settings")
+                    .contains(SETTINGS_SUBTITLE_PREFIX)
                 {
                     BIAS_SETTINGS_MATCH
                 } else {

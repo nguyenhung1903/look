@@ -9,6 +9,12 @@ struct LauncherRowView: View {
     let onOpen: () -> Void
 
     private var rowIcon: NSImage {
+        if result.kind == .clipboard {
+            return NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+                ?? NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
+                ?? NSWorkspace.shared.icon(forFileType: "txt")
+        }
+
         if result.id.hasPrefix("setting:") {
             let settingsPath = "/System/Applications/System Settings.app"
             if FileManager.default.fileExists(atPath: settingsPath) {
@@ -44,10 +50,15 @@ struct LauncherRowView: View {
             return "File"
         case .folder:
             return "Folder"
+        case .clipboard:
+            return "Clipboard"
         }
     }
 
     private var metaLabel: String {
+        if result.kind == .clipboard {
+            return result.subtitle ?? kindLabel
+        }
         if result.kind == .app {
             return kindLabel
         }

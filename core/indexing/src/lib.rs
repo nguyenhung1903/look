@@ -8,13 +8,32 @@ pub enum CandidateKind {
     Folder,
 }
 
+impl CandidateKind {
+    pub const APP_KEY: &'static str = "app";
+    pub const FILE_KEY: &'static str = "file";
+    pub const FOLDER_KEY: &'static str = "folder";
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CandidateKind::App => Self::APP_KEY,
+            CandidateKind::File => Self::FILE_KEY,
+            CandidateKind::Folder => Self::FOLDER_KEY,
+        }
+    }
+
+    pub fn from_key(value: &str) -> Option<Self> {
+        match value {
+            Self::APP_KEY => Some(CandidateKind::App),
+            Self::FILE_KEY => Some(CandidateKind::File),
+            Self::FOLDER_KEY => Some(CandidateKind::Folder),
+            _ => None,
+        }
+    }
+}
+
 impl fmt::Display for CandidateKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CandidateKind::App => write!(f, "app"),
-            CandidateKind::File => write!(f, "file"),
-            CandidateKind::Folder => write!(f, "folder"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 

@@ -6,6 +6,7 @@ A minimal, rofi-inspired macOS launcher focused on fast local actions:
 
 - launch installed apps
 - search local files and folders by name
+- clipboard history search (`c"`) with inline preview
 - quick command mode for calculator, shell, kill, and system info
 
 **Introduction video:**
@@ -15,7 +16,9 @@ A minimal, rofi-inspired macOS launcher focused on fast local actions:
 Default behavior:
 
 - launch top result with `Enter`
+- clipboard history query with `c"<word>`
 - web search handoff with `Cmd+Enter` (Google)
+- reveal selected app/file/folder in Finder with `Cmd+F`
 - command mode with `Cmd+/` (`calc`, `shell`, `kill`, `sys`)
 - force-quit flow in command mode (`kill`)
 
@@ -102,7 +105,9 @@ Look's UI:
 - `Enter`: launch selected app, execute active command, or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
+- `Cmd+F`: reveal selected app/file/folder in Finder
 - `a"` / `f"` / `d"` / `r"`: apps/files/folders/regex scoped query prefix
+- `c"`: clipboard history scoped query prefix
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
 - `Cmd+-`, `Cmd+=`, `Cmd+0`: temporary UI zoom out/in/reset
@@ -215,6 +220,7 @@ In scope for first milestone:
 - global hotkey opens launcher
 - query app index and launch with Enter
 - query file/folder name index and open/reveal
+- query clipboard history (`c"`) and copy selected history item back to clipboard
 - web search handoff with Google
 - command mode with `calc`, `shell`, `kill`, and `sys`
 - optional translation exists behind network opt-in (`translate_allow_network=true`)
@@ -223,7 +229,6 @@ In scope for first milestone:
 Out of scope for v1:
 
 - plugins
-- clipboard history
 - online-first behavior
 - semantic/vector search
 - content indexing

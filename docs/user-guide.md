@@ -6,6 +6,7 @@ It helps you do three things quickly in one window:
 
 - launch installed apps
 - search local files and folders by name
+- search clipboard history snippets (`c"` prefix)
 - run quick commands (calculator, shell, kill, and system info)
 
 The interface is local-first, lightweight, and designed for low-friction daily use.
@@ -143,6 +144,8 @@ This includes:
 - press `Shift+Tab` to move up the list
 - press `Up` / `Down` to move selection
 - press `Enter` to open the selected result
+- press `Cmd+F` to reveal selected app/file/folder in Finder
+- press `Cmd+H` to open/close the in-window shortcut help screen
 - click a row to open it
 
 If results look stale or missing after config/indexing changes:
@@ -160,6 +163,21 @@ Quick prefix action in the same input:
 - type `f"term`: search files only
 - type `d"term`: search folders only
 - type `r"pattern`: search by regex (case-insensitive)
+- type `c"term`: search recent clipboard text history (latest 10)
+
+### 2) Clipboard history search
+
+Clipboard history is available directly from the main query input:
+
+- type `c"` to list recent clipboard items
+- type `c"word` to filter history by text
+- press `Enter` on a clipboard row to copy that item back to macOS clipboard
+- use the `Delete` button in preview panel to remove sensitive clipboard entries from look history
+
+Notes:
+
+- clipboard history currently stores text clipboard items only
+- history is in-memory for the running app session
 
 Translation privacy control:
 
@@ -168,7 +186,7 @@ Translation privacy control:
 - optional env override: `LOOK_TRANSLATE_ALLOW_NETWORK=true`
 - recommended default: keep this disabled for a local-first workflow
 
-### 2) Web search handoff
+### 3) Web search handoff
 
 If you want to search the web from the same query:
 
@@ -176,7 +194,7 @@ If you want to search the web from the same query:
 
 Current default provider: Google.
 
-### 3) Command mode
+### 4) Command mode
 
 To enter command mode:
 
@@ -364,10 +382,13 @@ ui_border_opacity=0.12
 - `f"`: files-only search prefix
 - `d"`: folders-only search prefix
 - `r"`: regex search prefix
+- `c"`: clipboard history search prefix
 - `Cmd+/`: enter command mode
+- `Cmd+H`: toggle in-window keyboard help screen
 - `Escape`: back to app list (in command mode), otherwise hide launcher
 - `Shift+Escape`: hide launcher
 - `Cmd+Enter`: search query on Google
+- `Cmd+F`: reveal selected app/file/folder in Finder
 - `Cmd+Escape`: back to command list (`calc`) while staying in command mode
 - `Cmd+Q`: hide launcher
 - `Cmd+Option+Q`: quit app
