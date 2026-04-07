@@ -193,6 +193,25 @@ cd bridge/ffi
 cargo check
 ```
 
+Run local dev app (from repository root):
+
+```bash
+make app-run
+```
+
+`make app-run` behavior:
+
+- builds local app bundle with Xcode (`Debug`)
+- stops any running `Look` process first (including Homebrew-installed app instance)
+- launches local app with `LOOK_CONFIG_PATH=$HOME/.look.dev.config`
+- enables a red `TEST APP` badge in the window so local/dev run is visually distinct
+
+Override dev config path when needed:
+
+```bash
+make app-run DEV_CONFIG_PATH="$HOME/.look.qa.config"
+```
+
 Prepare release artifacts/scripts (maintainers):
 
 ```bash

@@ -44,6 +44,25 @@ struct LauncherView: View {
     @FocusState private var isQueryFocused: Bool
 
     private let bridge = EngineBridge.shared
+    private let shouldShowTestHint = LauncherView.cachedShouldShowTestHint
+
+    private static let cachedShouldShowTestHint: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        if let value = env["LOOK_DEV_HINT"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            ["1", "true", "yes", "on"].contains(value)
+        {
+            return true
+        }
+
+        if let configPath = env["LOOK_CONFIG_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+            configPath.lowercased().contains(".look.dev.config")
+        {
+            return true
+        }
+
+        return false
+    }()
+
     private static let clipboardSubtitleDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -966,6 +985,18 @@ struct LauncherView: View {
                         hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(),
                         lineWidth: borderWidth
                     )
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if shouldShowTestHint {
+                Text("TEST APP")
+                    .font(themeStore.uiFont(size: CGFloat(max(10, themeStore.settings.fontSize - 3)), weight: .bold))
+                    .foregroundStyle(Color.red.opacity(0.95))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.35), in: Capsule())
+                    .padding(.top, 8)
+                    .padding(.trailing, 10)
             }
         }
         .overlay(alignment: .bottomTrailing) {
