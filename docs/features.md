@@ -87,3 +87,42 @@ This page defines the near-term feature scope for `look` and how each feature ma
 - accept and evaluate community feature proposals continuously
 - add plugin/extension injection path for developer customization
 - keep extension model optional so base launcher remains simple and fast
+
+## 7) Dictionary lookup (`tw"` prefix)
+
+### Current
+
+- macOS system dictionary integration via `DCSCopyTextDefinition`
+- Multi-language support: English, Vietnamese, Japanese
+- Displays up to 10 senses per section
+- Shows up to 2 examples per sense (where available)
+
+### Language-specific behavior
+
+**English:**
+- Parses POS sections: adjective, noun, verb, adverb, exclamation, interjection
+- Extracts senses numbered with "1. ", "2. ", etc.
+- Shows antonyms when available (after ANTONYMS marker)
+- Special handling for "exclamation" type (no numbered senses)
+- Phrases section extracted separately
+
+**Vietnamese:**
+- Detects POS keywords: thán từ, danh từ, động từ, tính từ, trạng từ, giới từ, liên từ, đại từ
+- Supports entries without explicit POS (uses "adjective" as default)
+- Parses numbered senses and distributes examples
+- Truncates definitions longer than 150 characters
+
+**Japanese:**
+- Detects Japanese characters (Hiragana, Katakana, Kanji)
+- WORD CHOICE section parsed separately (if present)
+- Numbered senses with 【annotations】 removed from display
+- Reference markers (⇨...) removed from definitions
+- Handles both WORD CHOICE-first and numbered-senses-first formats
+
+### Known limitations
+
+- Examples are limited to 2 per sense (excess examples not shown)
+- Very long definitions are truncated with "..."
+- Vietnamese entries without POS keywords default to "adjective"
+- Japanese reference markers like （⇨...） are stripped
+- English phrases limited to 3 items

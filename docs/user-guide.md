@@ -161,7 +161,7 @@ Path-style query is supported directly in normal search:
 Quick prefix action in the same input:
 
 - type `t"word or phrase` and press `Enter`: translate text via network API and show result banner in app
-- type `z"word or phrase` and press `Enter`: show Look Up definition/explanation under the search bar
+- type `tw"word or phrase` and press `Enter`: translate to 3 languages simultaneously (English, Tiếng Việt, 日本語) and show all results under the search bar with word definitions and examples
 - type `a"term`: search apps only
 - type `f"term`: search files only
 - type `d"term`: search folders only
@@ -187,7 +187,39 @@ Translation privacy control:
 - translation network access is disabled by default
 - `translate_allow_network` controls whether translation requests are allowed
 - optional env override: `LOOK_TRANSLATE_ALLOW_NETWORK=true`
-- when disabled, `t"...` returns a local warning and does not send text to network (`z"...` still works via local macOS dictionary)
+- when disabled, `t"...` returns a local warning and does not send text to network (`tw"...` requires network for translation; if disabled, no translation results are returned)
+
+#### Translation (`tw"`) — Supported languages
+
+`tw"word` translates your input to all 3 supported languages at once and enriches each result with dictionary definitions from your installed Apple dictionaries (Oxford, Lạc Việt, etc.):
+
+| Language | Label | Translation target |
+|---|---|---|
+| English | EN | input → English |
+| Vietnamese | VI | input → Tiếng Việt |
+| Japanese | JA | input → 日本語 |
+
+Each section shows:
+- translated text
+- word type (noun, verb, adjective...)
+- pronunciation (if available in dictionary)
+- numbered definitions and examples
+- synonyms
+
+Click the speaker icon next to any text to hear it read aloud (uses system TTS voices).
+
+**Open in Dictionary:** the bottom button opens Dictionary.app with the search word pre-filled for the full native rich view.
+
+**Request new languages:** if you want additional language pairs, please [open an issue](https://github.com/kunkka19xx/look/issues/new) on GitHub. Translation is powered by a backend service — adding a new language pair requires both backend support and the corresponding Apple dictionary installed locally.
+
+**Dictionary lookup limitations:**
+
+- Up to 10 senses per section; excess are not shown
+- Up to 2 examples per sense; excess are not shown
+- Very long definitions are truncated with "..."
+- Vietnamese entries without POS keywords default to "adjective"
+- Japanese reference markers (⇨...) are stripped from definitions
+- English phrases limited to 3 items
 
 ### 3) Web search handoff
 
@@ -386,7 +418,7 @@ ui_border_opacity=0.12
 
 - `Tab`: next result / next command
 - `Shift+Tab`: previous result / previous command
-- `Enter`: open selected result, run command, translate (if `t"...`) or Look Up (if `z"...`), or confirm kill
+- `Enter`: open selected result, run command, translate (if `t"...`) or translate EN↔VI↔JA (if `tw"...`), or confirm kill
 - `a"`: apps-only search prefix
 - `f"`: files-only search prefix
 - `d"`: folders-only search prefix

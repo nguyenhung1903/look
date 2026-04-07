@@ -265,6 +265,7 @@ private enum LauncherHelpContent {
         ("r\"pattern", "Regex search"),
         ("c\"word", "Clipboard history search (latest 10 text clips)"),
         ("t\"word", "Translate text"),
+        ("tw\"word", "Translate EN↔VI/EN↔JA"),
     ]
 
     static let commandMode: [(String, String)] = [

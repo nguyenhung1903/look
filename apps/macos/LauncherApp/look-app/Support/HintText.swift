@@ -10,6 +10,6 @@ enum HintText {
 
     enum Settings {
         static let advancedApply = "Save Config, then press Cmd+Shift+; to apply backend indexing changes."
-        static let shortcutsTips = "Tips: t\"word for network translate | z\"word for macOS Look Up definition | /kill to force quit apps"
+        static let shortcutsTips = "Tips: t\"word for network translate | tw\"word to translate EN↔VI/EN↔JA | /kill to force quit apps"
     }
 }
