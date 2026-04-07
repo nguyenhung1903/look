@@ -72,6 +72,12 @@ Indexing config supports include roots plus exclude rules for both apps and file
 
 ![Look UI 6](assets/look-ui/6.png)
 
+![Look UI 7](assets/look-ui/7.png)
+
+![Look UI 8](assets/look-ui/8.png)
+
+![Look UI 9](assets/look-ui/9.png)
+
 ## Current status
 
 - Swift macOS app scaffold is located at `apps/macos/LauncherApp/look-app/` with project file `apps/macos/LauncherApp/look-app.xcodeproj`.
