@@ -10,7 +10,7 @@ A minimal, rofi-inspired macOS launcher focused on fast local actions:
 
 Default behavior:
 
-- translate text with `t"word` + `Enter`
+- translate text with `t"word` (network) or show macOS Look Up definition below search with `z"word` + `Enter`
 - web search handoff with `Cmd+Enter` (Google)
 - force-quit flow in command mode (`kill`)
 
@@ -79,7 +79,7 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - `Cmd+Esc`: back to command list (`calc`) while staying in command mode
 - `Cmd+Q`: hide launcher (Spotlight-style safety)
 - `Cmd+Option+Q`: quit app
-- `Enter`: launch selected app, execute active command, translate (if `t"...`), or confirm kill
+- `Enter`: launch selected app, execute active command, translate (if `t"...`) or Look Up (if `z"...`), or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
 - `a"` / `f"` / `d"` / `r"`: apps/files/folders/regex scoped query prefix
@@ -196,7 +196,7 @@ In scope for first milestone:
 - query app index and launch with Enter
 - query file/folder name index and open/reveal
 - web search handoff with Google
-- translate text with `t"...`
+- translate text with `t"...` (network) or show macOS Look Up definition below search with `z"...`
 - command mode with `calc`, `shell`, `kill`, and `sys`
 - predictable, local-first behavior
 

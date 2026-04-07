@@ -1,7 +1,40 @@
 import AppKit
+import CoreServices
 import SwiftUI
+import AVFoundation
 
 struct LauncherView: View {
+    private struct LookupDefinition {
+        let query: String
+        let term: String
+        let text: String
+    }
+
+    private enum LookupLineKind {
+        case partOfSpeech
+        case sectionHeading
+        case sense
+        case example
+        case translation
+        case note
+    }
+
+    private struct LookupLine {
+        let kind: LookupLineKind
+        let text: String
+    }
+
+    private struct LookupPresentation {
+        let title: String
+        let subtitle: String?
+        let lines: [LookupLine]
+    }
+
+    private enum TranslationCommand {
+        case network(String)
+        case lookup(String)
+    }
+
     private enum BannerStyle {
         case success
         case error
@@ -39,6 +72,8 @@ struct LauncherView: View {
     @State private var selectedKillSuggestionIndex: Int?
     @State private var pendingKillApp: (NSRunningApplication, Int)?
     @State private var focusRequestToken: UInt64 = 0
+    @State private var lookupDefinition: LookupDefinition?
+    @State private var speechSynthesizer = AVSpeechSynthesizer()
     @FocusState private var isQueryFocused: Bool
 
     private let bridge = EngineBridge.shared
@@ -272,8 +307,8 @@ struct LauncherView: View {
             }
         } else {
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let translationTarget = extractTranslationQuery(from: trimmed) {
-                handleTranslation(text: translationTarget)
+            if let translationCommand = extractTranslationQuery(from: trimmed) {
+                handleTranslation(command: translationCommand)
                 isQueryFocused = true
             } else {
                 openSelectedApp()
@@ -285,18 +320,32 @@ struct LauncherView: View {
         }
     }
 
-    private func extractTranslationQuery(from input: String) -> String? {
+    private func extractTranslationQuery(from input: String) -> TranslationCommand? {
         if input.hasPrefix("t\"") {
             let text = String(input.dropFirst(2)).trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? nil : text
+            return text.isEmpty ? nil : .network(text)
+        }
+
+        if input.hasPrefix("z\"") {
+            let text = String(input.dropFirst(2)).trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : .lookup(text)
         }
 
         if input.lowercased().hasPrefix("tr ") {
             let text = String(input.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? nil : text
+            return text.isEmpty ? nil : .network(text)
         }
 
         return nil
+    }
+
+    private func handleTranslation(command: TranslationCommand) {
+        switch command {
+        case .network(let text):
+            handleNetworkTranslation(text: text)
+        case .lookup(let text):
+            handleLookupTranslation(text: text)
+        }
     }
 
     private func runCommandModeAction() {
@@ -437,8 +486,8 @@ struct LauncherView: View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        if let translationTarget = extractTranslationQuery(from: trimmed) {
-            handleTranslation(text: translationTarget)
+        if let translationCommand = extractTranslationQuery(from: trimmed) {
+            handleTranslation(command: translationCommand)
             isQueryFocused = true
             return
         }
@@ -544,7 +593,329 @@ struct LauncherView: View {
         window.orderOut(nil)
     }
 
-    private func handleTranslation(text: String) {
+    private func handleLookupTranslation(text: String) {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            showBanner("Type text after z\" to look up", style: .error, duration: 3.2)
+            return
+        }
+
+        guard let definition = resolveLookupDefinition(for: normalized) else {
+            lookupDefinition = nil
+            showBanner("No Look Up definition found", style: .error, duration: 3.2)
+            return
+        }
+
+        lookupDefinition = definition
+    }
+
+    private func fetchExactLookupDefinition(for text: String) -> String? {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+
+        let nsText = normalized as NSString
+        let range = CFRange(location: 0, length: nsText.length)
+
+        guard let unmanaged = DCSCopyTextDefinition(nil, normalized as CFString, range) else {
+            return nil
+        }
+
+        let raw = (unmanaged.takeRetainedValue() as String)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return raw.isEmpty ? nil : raw
+    }
+
+    private func resolveLookupDefinition(for text: String) -> LookupDefinition? {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+
+        for candidate in lookupCandidates(for: normalized) {
+            guard let raw = fetchExactLookupDefinition(for: candidate) else { continue }
+            let header = lookupHeader(from: raw, fallbackTerm: candidate)
+            return LookupDefinition(query: normalized, term: header.title, text: raw)
+        }
+
+        return nil
+    }
+
+    private func lookupCandidates(for text: String) -> [String] {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return [] }
+
+        var ordered = [normalized]
+        let languages = [Locale.preferredLanguages.first, "en_US", "en_GB"]
+            .compactMap { $0 }
+
+        let range = NSRange(location: 0, length: (normalized as NSString).length)
+        for language in languages {
+            if let completions = NSSpellChecker.shared.completions(
+                forPartialWordRange: range,
+                in: normalized,
+                language: language,
+                inSpellDocumentWithTag: 0
+            ) {
+                ordered.append(contentsOf: completions)
+            }
+
+            if let guesses = NSSpellChecker.shared.guesses(
+                forWordRange: range,
+                in: normalized,
+                language: language,
+                inSpellDocumentWithTag: 0
+            ) {
+                ordered.append(contentsOf: guesses)
+            }
+        }
+
+        var seen = Set<String>()
+        return ordered.filter { candidate in
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return false }
+            return seen.insert(trimmed.lowercased()).inserted
+        }
+    }
+
+    private func previewLookupDefinition(for input: String) {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard case .lookup(let text) = extractTranslationQuery(from: trimmed) else {
+            lookupDefinition = nil
+            return
+        }
+
+        lookupDefinition = resolveLookupDefinition(for: text)
+    }
+
+    private func lookupHeader(from raw: String, fallbackTerm: String) -> (title: String, subtitle: String?, body: String) {
+        let parts = raw
+            .replacingOccurrences(of: "\\s*\\|\\s*", with: "|", options: .regularExpression)
+            .components(separatedBy: "|")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard parts.count >= 2 else {
+            return (fallbackTerm, nil, raw)
+        }
+
+        let title = parts.first ?? fallbackTerm
+        let subtitleParts = Array(parts.dropFirst().dropLast())
+        let subtitle = subtitleParts.isEmpty ? nil : subtitleParts.joined(separator: " | ")
+        let body = parts.last ?? raw
+        return (title, subtitle, body)
+    }
+
+    private func lookupPresentation(from definition: LookupDefinition) -> LookupPresentation {
+        let header = lookupHeader(from: definition.text, fallbackTerm: definition.term)
+        let partOfSpeechKeywords = [
+            "thán từ", "danh từ", "động từ", "tính từ", "trạng từ", "giới từ", "liên từ", "đại từ",
+            "interjection", "noun", "verb", "adjective", "adverb", "preposition", "conjunction", "pronoun"
+        ]
+        let sectionKeywords = ["cách viết khác", "xem", "từ đồng nghĩa", "từ trái nghĩa", "synonyms", "antonyms"]
+
+        var body = header.body
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        for keyword in partOfSpeechKeywords + sectionKeywords {
+            let escaped = NSRegularExpression.escapedPattern(for: keyword)
+            body = body.replacingOccurrences(
+                of: "(?i)\\b" + escaped + "\\b",
+                with: "\n" + keyword + "\n",
+                options: .regularExpression
+            )
+        }
+
+        body = body
+            .replacingOccurrences(of: "\\s+(?=\\d+\\s)", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "\\s*[▸►•]\\s*", with: "\n▸ ", options: .regularExpression)
+            .replacingOccurrences(of: "\n{2,}", with: "\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let sourceLines = body
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        var lines: [LookupLine] = []
+        for line in sourceLines {
+            if isLookupPartOfSpeech(line) {
+                lines.append(LookupLine(kind: .partOfSpeech, text: line))
+                continue
+            }
+
+            if isLookupSectionHeading(line) {
+                lines.append(LookupLine(kind: .sectionHeading, text: line))
+                continue
+            }
+
+            if line.hasPrefix("▸") {
+                let content = String(line.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines)
+                if let split = lookupTranslationBoundary(in: content) {
+                    let leading = content[..<split].trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trailing = content[split...].trimmingCharacters(in: .whitespacesAndNewlines)
+                    lines.append(LookupLine(kind: .example, text: leading))
+                    lines.append(LookupLine(kind: .translation, text: trailing))
+                } else {
+                    lines.append(LookupLine(kind: .example, text: content))
+                }
+                continue
+            }
+
+            if line.range(of: "^\\d+\\s+", options: .regularExpression) != nil {
+                lines.append(LookupLine(kind: .sense, text: line))
+                continue
+            }
+
+            if let split = lookupTranslationBoundary(in: line) {
+                let leading = line[..<split].trimmingCharacters(in: .whitespacesAndNewlines)
+                let trailing = line[split...].trimmingCharacters(in: .whitespacesAndNewlines)
+                lines.append(LookupLine(kind: .note, text: leading))
+                lines.append(LookupLine(kind: .translation, text: trailing))
+            } else {
+                lines.append(LookupLine(kind: .note, text: line))
+            }
+        }
+
+        if lines.isEmpty {
+            lines = [LookupLine(kind: .note, text: body)]
+        }
+
+        return LookupPresentation(title: header.title, subtitle: header.subtitle, lines: lines)
+    }
+
+    private func isLookupPartOfSpeech(_ line: String) -> Bool {
+        let lowered = line.lowercased()
+        let headings = [
+            "thán từ", "danh từ", "động từ", "tính từ", "trạng từ", "giới từ", "liên từ", "đại từ",
+            "interjection", "noun", "verb", "adjective", "adverb", "preposition", "conjunction", "pronoun"
+        ]
+        return headings.contains(lowered)
+    }
+
+    private func isLookupSectionHeading(_ line: String) -> Bool {
+        let lowered = line.lowercased()
+        let headings = ["từ đồng nghĩa", "từ trái nghĩa", "cách viết khác", "xem", "synonyms", "antonyms"]
+        return headings.contains(lowered)
+    }
+
+    private func lookupTranslationBoundary(in text: String) -> String.Index? {
+        text.range(of: "\\s+(?=\\p{Latin}*[À-ỹĂ-ỸăâêôơưđĐ])", options: .regularExpression)?.lowerBound
+    }
+
+    private func speakLookupTerm(_ term: String) {
+        let text = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        if speechSynthesizer.isSpeaking {
+            speechSynthesizer.stopSpeaking(at: .immediate)
+        }
+
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.rate = 0.46
+
+        if text.range(of: "[A-Za-z]", options: .regularExpression) != nil,
+           let englishVoice = AVSpeechSynthesisVoice(language: "en-US") {
+            utterance.voice = englishVoice
+        } else if let preferred = Locale.preferredLanguages.first,
+                  let localeVoice = AVSpeechSynthesisVoice(language: preferred) {
+            utterance.voice = localeVoice
+        }
+
+        speechSynthesizer.speak(utterance)
+    }
+
+    @ViewBuilder
+    private func lookupDefinitionPanel(_ definition: LookupDefinition) -> some View {
+        let presentation = lookupPresentation(from: definition)
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(presentation.title)
+                        .font(.system(size: CGFloat(themeStore.settings.fontSize + 11), weight: .semibold, design: .serif))
+                        .foregroundStyle(themeStore.fontColor())
+
+                    if let subtitle = presentation.subtitle {
+                        Text(subtitle)
+                            .font(.system(size: CGFloat(themeStore.settings.fontSize + 1), weight: .regular, design: .serif))
+                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.62))
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                Button {
+                    speakLookupTerm(presentation.title)
+                } label: {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.85))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 3)
+            }
+
+            Divider()
+                .overlay(.white.opacity(0.15))
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(Array(presentation.lines.enumerated()), id: \.offset) { _, line in
+                        switch line.kind {
+                        case .partOfSpeech:
+                            Text(line.text)
+                                .font(.system(size: CGFloat(themeStore.settings.fontSize + 1), weight: .semibold, design: .rounded))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                                .padding(.top, 8)
+
+                        case .sectionHeading:
+                            Text(line.text.uppercased())
+                                .font(.system(size: CGFloat(themeStore.settings.fontSize), weight: .bold, design: .serif))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.56))
+                                .padding(.top, 8)
+
+                        case .sense:
+                            Text(line.text)
+                                .font(.system(size: CGFloat(themeStore.settings.fontSize + 3), weight: .semibold, design: .serif))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.95))
+                                .lineSpacing(3)
+                                .textSelection(.enabled)
+                                .padding(.top, 2)
+
+                        case .example:
+                            Text("▸ \(line.text)")
+                                .font(.system(size: CGFloat(themeStore.settings.fontSize + 1), weight: .semibold, design: .serif))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.62))
+                                .italic()
+                                .padding(.leading, 28)
+                                .textSelection(.enabled)
+
+                        case .translation:
+                            Text(line.text)
+                                .font(.system(size: CGFloat(themeStore.settings.fontSize + 2), weight: .semibold, design: .serif))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.93))
+                                .lineSpacing(3)
+                                .padding(.leading, 54)
+                                .padding(.bottom, 2)
+                                .textSelection(.enabled)
+
+                        case .note:
+                            Text(line.text)
+                                .font(.system(size: CGFloat(themeStore.settings.fontSize + 2), weight: .regular, design: .serif))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.9))
+                                .lineSpacing(3)
+                                .padding(.leading, 28)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func handleNetworkTranslation(text: String) {
         let result = bridge.translate(text: text)
         if let translated = result?.translated, !translated.isEmpty {
             showBanner(
@@ -674,6 +1045,9 @@ struct LauncherView: View {
                                 themeStore: themeStore
                             )
                         }
+                    } else if let lookupDefinition,
+                              query.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("z\"") {
+                        lookupDefinitionPanel(lookupDefinition)
                     } else {
                         HStack(spacing: 0) {
                             ResultsListView(
@@ -738,6 +1112,7 @@ struct LauncherView: View {
             keyboardMonitor.stop()
         }
         .onChange(of: query) { _, _ in
+            previewLookupDefinition(for: query)
             if !isCommandMode {
                 refreshSearchResults()
             }
