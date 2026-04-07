@@ -6,6 +6,7 @@ It helps you do three things quickly in one window:
 
 - launch installed apps
 - search local files and folders by name
+- search clipboard history snippets (`c"` prefix)
 - run quick commands (calculator, shell, kill, and system info)
 
 The interface is local-first, lightweight, and designed for low-friction daily use.
@@ -143,6 +144,9 @@ This includes:
 - press `Shift+Tab` to move up the list
 - press `Up` / `Down` to move selection
 - press `Enter` to open the selected result
+- press `Cmd+C` to copy selected file/folder to pasteboard
+- press `Cmd+F` to reveal selected app/file/folder in Finder
+- press `Cmd+H` to open/close the in-window shortcut help screen
 - click a row to open it
 
 If results look stale or missing after config/indexing changes:
@@ -156,20 +160,68 @@ Path-style query is supported directly in normal search:
 
 Quick prefix action in the same input:
 
-- type `t"word or phrase` and press `Enter`: translate text and show the result banner in app
+- type `t"word or phrase` and press `Enter`: translate text via network API and show result banner in app
+- type `tw"word or phrase` and press `Enter`: translate to 3 languages simultaneously (English, Tiếng Việt, 日本語) and show all results under the search bar with word definitions and examples
 - type `a"term`: search apps only
 - type `f"term`: search files only
 - type `d"term`: search folders only
 - type `r"pattern`: search by regex (case-insensitive)
+- type `c"term`: search recent clipboard text history (latest 10)
+
+### 2) Clipboard history search
+
+Clipboard history is available directly from the main query input:
+
+- type `c"` to list recent clipboard items
+- type `c"word` to filter history by text
+- press `Enter` on a clipboard row to copy that item back to macOS clipboard
+- use the `Delete` button in preview panel to remove sensitive clipboard entries from look history
+
+Notes:
+
+- clipboard history currently stores text clipboard items only
+- history is in-memory for the running app session
 
 Translation privacy control:
 
-- network translation is disabled by default
-- enable translation in `Advanced` settings and click `Save Config`
+- translation network access is disabled by default
+- `translate_allow_network` controls whether translation requests are allowed
 - optional env override: `LOOK_TRANSLATE_ALLOW_NETWORK=true`
-- when disabled, `t"...` returns a local warning and does not send text to network
+- when disabled, `t"...` returns a local warning and does not send text to network (`tw"...` requires network for translation; if disabled, no translation results are returned)
 
-### 2) Web search handoff
+#### Translation (`tw"`) — Supported languages
+
+`tw"word` translates your input to all 3 supported languages at once and enriches each result with dictionary definitions from your installed Apple dictionaries (Oxford, Lạc Việt, etc.):
+
+| Language | Label | Translation target |
+|---|---|---|
+| English | EN | input → English |
+| Vietnamese | VI | input → Tiếng Việt |
+| Japanese | JA | input → 日本語 |
+
+Each section shows:
+- translated text
+- word type (noun, verb, adjective...)
+- pronunciation (if available in dictionary)
+- numbered definitions and examples
+- synonyms
+
+Click the speaker icon next to any text to hear it read aloud (uses system TTS voices).
+
+**Open in Dictionary:** the bottom button opens Dictionary.app with the search word pre-filled for the full native rich view.
+
+**Request new languages:** if you want additional language pairs, please [open an issue](https://github.com/kunkka19xx/look/issues/new) on GitHub. Translation is powered by a backend service — adding a new language pair requires both backend support and the corresponding Apple dictionary installed locally.
+
+**Dictionary lookup limitations:**
+
+- Up to 10 senses per section; excess are not shown
+- Up to 2 examples per sense; excess are not shown
+- Very long definitions are truncated with "..."
+- Vietnamese entries without POS keywords default to "adjective"
+- Japanese reference markers (⇨...) are stripped from definitions
+- English phrases limited to 3 items
+
+### 3) Web search handoff
 
 If you want to search the web from the same query:
 
@@ -177,7 +229,7 @@ If you want to search the web from the same query:
 
 Current default provider: Google.
 
-### 3) Command mode
+### 4) Command mode
 
 To enter command mode:
 
@@ -269,6 +321,12 @@ You can also configure backend indexing behavior with a user config file:
 - first launch creates this file automatically with defaults if it does not exist
 - live reload: press `Cmd+Shift+;` after editing the file
 
+Local dev run note (repository `make app-run`):
+
+- local dev launch uses `LOOK_CONFIG_PATH=$HOME/.look.dev.config` by default
+- local dev launch exports `LOOK_DEV_HINT=1`, and the app shows a red `TEST APP` badge
+- this helps distinguish local test app from installed release/Homebrew app
+
 Supported config keys (`key=value`):
 
 Backend indexing keys:
@@ -281,7 +339,7 @@ Backend indexing keys:
 - `file_scan_depth`: recursion depth for file scanning (positive integer); default: `4`
 - `file_scan_limit`: max indexed files per refresh (positive integer); default: `8000`
 - `file_exclude_paths`: comma-separated paths to exclude from file/folder indexing (supports `~/...`, absolute paths, and home-relative names); default: empty
-- `translate_allow_network`: allow network translation requests for `t"...` (`true`/`false`); default: `false`
+- `translate_allow_network`: allow network translation requests (`true`/`false`); default: `false`
 - `backend_log_level`: backend log verbosity (`error`/`info`/`debug`); default: `error`
 - `launch_at_login`: auto-start look after user sign-in (`true`/`false`); default: `true`
 - `skip_dir_names`: comma-separated directory names to ignore during file scan (case-insensitive); default: `node_modules,target,build,dist,library,applications,old firefox data`
@@ -360,15 +418,19 @@ ui_border_opacity=0.12
 
 - `Tab`: next result / next command
 - `Shift+Tab`: previous result / previous command
-- `Enter`: open selected result, run command, translate (if `t"...`), or confirm kill
+- `Enter`: open selected result, run command, translate (if `t"...`) or translate EN↔VI↔JA (if `tw"...`), or confirm kill
 - `a"`: apps-only search prefix
 - `f"`: files-only search prefix
 - `d"`: folders-only search prefix
 - `r"`: regex search prefix
+- `c"`: clipboard history search prefix
 - `Cmd+/`: enter command mode
+- `Cmd+H`: toggle in-window keyboard help screen
 - `Escape`: back to app list (in command mode), otherwise hide launcher
 - `Shift+Escape`: hide launcher
 - `Cmd+Enter`: search query on Google
+- `Cmd+C`: copy selected file/folder to pasteboard
+- `Cmd+F`: reveal selected app/file/folder in Finder
 - `Cmd+Escape`: back to command list (`calc`) while staying in command mode
 - `Cmd+Q`: hide launcher
 - `Cmd+Option+Q`: quit app

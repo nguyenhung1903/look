@@ -42,6 +42,14 @@ Core Engine (Rust)
 - web search is an explicit handoff action via `Cmd+Enter`
 - current default provider is Google
 
+## Clipboard history
+
+- clipboard history is implemented in the macOS shell layer (Swift)
+- query prefix `c"` switches normal search results to clipboard history mode
+- stores latest 10 text clipboard entries in memory for current app session
+- selecting a clipboard result with `Enter` copies that content back to clipboard
+- preview panel supports deleting individual clipboard entries from look history
+
 ## Command mode
 
 - `Cmd+/` enters command mode
@@ -57,6 +65,7 @@ Core Engine (Rust)
 
 - global hotkey `Cmd+Space` toggles launcher visibility (when not intercepted by Spotlight)
 - `Escape` hides launcher when not in command mode
+- `Cmd+F` reveals currently selected app/file/folder in Finder
 - launcher auto-hides on focus loss
 - app uses accessory activation behavior (hidden from `Cmd+Tab` app switcher)
 

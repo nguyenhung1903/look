@@ -1,5 +1,9 @@
+use crate::index::SETTINGS_CANDIDATE_ID_PREFIX;
 use look_indexing::{Candidate, CandidateKind};
 use std::collections::HashSet;
+
+const SETTINGS_URL_SCHEME_PREFIX: &str = "x-apple.systempreferences:";
+const SETTINGS_SUBTITLE_PREFIX: &str = "System Settings ";
 
 struct SettingsEntry {
     title: &'static str,
@@ -92,7 +96,10 @@ const SETTINGS_CATALOG: [SettingsEntry; 16] = [
 
 pub fn discover_system_settings_entries(seen: &mut HashSet<String>, out: &mut Vec<Candidate>) {
     for entry in SETTINGS_CATALOG {
-        let key = format!("setting:{}", entry.bundle_id.to_lowercase());
+        let key = format!(
+            "{SETTINGS_CANDIDATE_ID_PREFIX}{}",
+            entry.bundle_id.to_lowercase()
+        );
         if !seen.insert(key.clone()) {
             continue;
         }
@@ -101,9 +108,9 @@ pub fn discover_system_settings_entries(seen: &mut HashSet<String>, out: &mut Ve
             &key,
             CandidateKind::App,
             entry.title,
-            &format!("x-apple.systempreferences:{}", entry.bundle_id),
+            &format!("{SETTINGS_URL_SCHEME_PREFIX}{}", entry.bundle_id),
         );
-        candidate.subtitle = Some(format!("System Settings {}", entry.aliases));
+        candidate.subtitle = Some(format!("{SETTINGS_SUBTITLE_PREFIX}{}", entry.aliases));
         out.push(candidate);
     }
 }

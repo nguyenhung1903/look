@@ -148,10 +148,10 @@ struct HintBar: View {
     let themeStore: ThemeStore
 
     var hint: String {
-        if isCommandMode && activeCommandID == "kill" {
+        if isCommandMode && activeCommandID == AppConstants.Launcher.Command.kill {
             return AppConstants.Launcher.killHint
         }
-        if isCommandMode && activeCommandID == "sys" {
+        if isCommandMode && activeCommandID == AppConstants.Launcher.Command.sys {
             return AppConstants.Launcher.sysHint
         }
         return isCommandMode ? AppConstants.Launcher.commandHint : AppConstants.Launcher.normalHint
@@ -161,5 +161,144 @@ struct HintBar: View {
         Text(hint)
             .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
             .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+    }
+}
+
+struct ClipboardEmptyStateView: View {
+    let themeStore: ThemeStore
+
+    var body: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.on.clipboard")
+                        .foregroundStyle(.teal)
+                    Text("Clipboard History")
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 1), weight: .semibold))
+                }
+
+                Text("No clipboard items yet")
+                    .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .medium))
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.88))
+
+                Text("Copy any text, then search with c\"word to find it here.")
+                    .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            Rectangle()
+                .fill(.white.opacity(0.08))
+                .frame(width: 1)
+                .padding(.vertical, 4)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("How to use")
+                    .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .semibold))
+                    .foregroundStyle(themeStore.fontColor())
+                Text("• Type c\" to list latest 10 clips\n• Type c\"mail to filter\n• Press Enter to copy selected item")
+                    .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .lineSpacing(4)
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+}
+
+struct LauncherHelpScreenView: View {
+    let themeStore: ThemeStore
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(LauncherHelpContent.title)
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 3), weight: .semibold))
+                    Spacer()
+                    Text(LauncherHelpContent.closeHint)
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                }
+
+                Text(LauncherHelpContent.subtitle)
+                    .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .regular))
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.8))
+
+                ShortcutHelpSection(title: "Main", items: LauncherHelpContent.mainShortcuts)
+                ShortcutHelpSection(title: "Query prefixes", items: LauncherHelpContent.queryModes)
+                ShortcutHelpSection(title: "Command mode", items: LauncherHelpContent.commandMode)
+            }
+            .padding(12)
+        }
+        .scrollIndicators(.hidden)
+    }
+}
+
+private enum LauncherHelpContent {
+    static let title = "Keyboard Help"
+    static let closeHint = "Cmd+H to close"
+    static let subtitle = "Quick guide for app list, clipboard search, and command flow."
+
+    static let mainShortcuts: [(String, String)] = [
+        ("Enter", "Open selected app/file/folder or copy selected clipboard item"),
+        ("Cmd+C", "Copy selected file/folder to pasteboard"),
+        ("Tab / Shift+Tab", "Move selection"),
+        ("Up / Down", "Move selection"),
+        ("Cmd+F", "Reveal selected app/file/folder in Finder"),
+        ("Cmd+Enter", "Search current query on Google"),
+        ("Cmd+/", "Enter command mode"),
+        ("Cmd+H", "Toggle this help screen"),
+        ("Esc", "Close help / back / hide launcher"),
+    ]
+
+    static let queryModes: [(String, String)] = [
+        ("a\"word", "Apps only"),
+        ("f\"word", "Files only"),
+        ("d\"word", "Folders only"),
+        ("r\"pattern", "Regex search"),
+        ("c\"word", "Clipboard history search (latest 10 text clips)"),
+        ("t\"word", "Translate text"),
+        ("tw\"word", "Translate EN↔VI/EN↔JA"),
+    ]
+
+    static let commandMode: [(String, String)] = [
+        ("Cmd+1 / Cmd+2 / Cmd+3", "Switch command"),
+        ("Cmd+Esc", "Back to command list (calc)"),
+        ("Y / N", "Confirm/cancel kill action"),
+    ]
+}
+
+private struct ShortcutHelpSection: View {
+    @EnvironmentObject private var themeStore: ThemeStore
+    let title: String
+    let items: [(String, String)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .semibold))
+                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.86))
+
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(item.0)
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(.white.opacity(0.14), in: Capsule())
+                    Text(item.1)
+                        .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.82))
+                    Spacer(minLength: 0)
+                }
+            }
+        }
     }
 }

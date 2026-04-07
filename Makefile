@@ -1,23 +1,34 @@
 SHELL := /bin/bash
+.DEFAULT_GOAL := help
 
 XCODE_PROJECT := apps/macos/LauncherApp/look-app.xcodeproj
 XCODE_SCHEME := Look
 XCODE_CONFIG := Debug
 XCODE_DERIVED_DATA := .build/xcode
-APP_BUNDLE := $(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/Look.app
-APP_BINARY := $(APP_BUNDLE)/Contents/MacOS/Look
-REAL_DB_PATH := $(HOME)/Library/Application Support/look/look.db
 
-.PHONY: help core-check ffi-check app-build app-run app-open symbols db-path db-status db-shell db-reset db-refresh
+APP_ID := noah-code.Look
+APP_PROCESS := Look
+APP_BUNDLE := $(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/Look.app
+APP_DEBUG_DYLIB := $(APP_BUNDLE)/Contents/MacOS/Look.debug.dylib
+
+REAL_DB_PATH := $(HOME)/Library/Application Support/look/look.db
+DEV_CONFIG_PATH ?= $(HOME)/.look.dev.config
+
+.PHONY: help core-check ffi-check app-build app-stop app-run app-open symbols db-path db-status db-shell db-reset db-refresh
 
 help:
 	@printf "look developer tasks\n\n"
+	@printf "build/check\n"
 	@printf "  make core-check   - cargo check core workspace\n"
 	@printf "  make ffi-check    - cargo check ffi crate\n"
 	@printf "  make app-build    - xcodebuild app (includes rust ffi build/link)\n"
-	@printf "  make app-run      - run app binary with real default db path\n"
+	@printf "  make symbols      - verify ffi symbols in app binary\n\n"
+	@printf "run app\n"
+	@printf "  make app-stop     - stop running Look app process\n"
+	@printf "  make app-run      - stop running app, then open local app with dev config\n"
 	@printf "  make app-open     - open built app bundle\n"
-	@printf "  make symbols      - verify ffi symbols in app binary\n"
+	@printf "  (override config) make app-run DEV_CONFIG_PATH=\"$$HOME/.look.dev.config\"\n\n"
+	@printf "database\n"
 	@printf "  make db-path      - print real db path\n"
 	@printf "  make db-status    - inspect candidates/usage tables\n"
 	@printf "  make db-shell     - open sqlite shell for real db\n"
@@ -33,17 +44,22 @@ ffi-check:
 app-build:
 	xcodebuild -project "$(XCODE_PROJECT)" -scheme "$(XCODE_SCHEME)" -configuration "$(XCODE_CONFIG)" -derivedDataPath "$(XCODE_DERIVED_DATA)" build
 
-app-run: app-build
+app-stop:
+	@echo "Stopping any running Look app (including Homebrew install)"
+	@osascript -e 'tell application id "$(APP_ID)" to quit' >/dev/null 2>&1 || true
+	@pkill -x "$(APP_PROCESS)" >/dev/null 2>&1 || true
+
+app-run: app-build app-stop
 	@if [ ! -d "$(APP_BUNDLE)" ]; then echo "missing app bundle: $(APP_BUNDLE)"; exit 1; fi
-	@echo "Opening app with real db path (LOOK_DB_PATH unset): $(REAL_DB_PATH)"
-	@env -u LOOK_DB_PATH open "$(APP_BUNDLE)"
+	@echo "Opening local app with config: $(DEV_CONFIG_PATH)"
+	@env -u LOOK_DB_PATH LOOK_CONFIG_PATH="$(DEV_CONFIG_PATH)" LOOK_DEV_HINT=1 open -n "$(APP_BUNDLE)"
 
 app-open: app-build
 	@if [ ! -d "$(APP_BUNDLE)" ]; then echo "missing app bundle: $(APP_BUNDLE)"; exit 1; fi
 	@open "$(APP_BUNDLE)"
 
 symbols: app-build
-	@nm -gU "$(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/Look.app/Contents/MacOS/Look.debug.dylib" | rg "_look_search_json|_look_record_usage|_look_free_cstring"
+	@nm -gU "$(APP_DEBUG_DYLIB)" | rg "_look_search_json|_look_record_usage|_look_free_cstring"
 
 db-path:
 	@echo "$(REAL_DB_PATH)"

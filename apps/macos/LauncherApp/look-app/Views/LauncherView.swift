@@ -1,7 +1,13 @@
 import AppKit
+import CoreServices
 import SwiftUI
 
 struct LauncherView: View {
+    private enum TranslationCommand {
+        case network(String)
+        case lookup(String)
+    }
+
     private enum BannerStyle {
         case success
         case error
@@ -21,6 +27,7 @@ struct LauncherView: View {
 
     @EnvironmentObject private var appUIState: AppUIState
     @EnvironmentObject private var themeStore: ThemeStore
+    @StateObject private var clipboardStore = ClipboardHistoryStore()
 
     @State private var query = ""
     @State private var commandInput = ""
@@ -36,29 +43,147 @@ struct LauncherView: View {
     @State private var bannerStyle: BannerStyle = .info
     @State private var bannerCopyText: String?
     @State private var bannerTask: Task<Void, Never>?
+    @State private var lookupPreviewTask: Task<Void, Never>?
     @State private var selectedKillSuggestionIndex: Int?
     @State private var pendingKillApp: (NSRunningApplication, Int)?
+    @State private var showsHelpScreen = false
     @State private var focusRequestToken: UInt64 = 0
+    @State private var lookupDefinition: LookupDefinition?
     @FocusState private var isQueryFocused: Bool
 
     private let bridge = EngineBridge.shared
+    private let shouldShowTestHint = LauncherView.cachedShouldShowTestHint
+
+    private static let cachedShouldShowTestHint: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        if let value = env["LOOK_DEV_HINT"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            ["1", "true", "yes", "on"].contains(value)
+        {
+            return true
+        }
+
+        if let configPath = env["LOOK_CONFIG_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+            configPath.lowercased().contains(".look.dev.config")
+        {
+            return true
+        }
+
+        return false
+    }()
+
+    private static let clipboardSubtitleDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     private let commandCatalog: [AppCommand] = AppConstants.Launcher.commandCatalog
 
-    private var filteredResults: [LauncherResult] {
-        var seenTitles = Set<String>()
-        var unique: [LauncherResult] = []
-        for item in backendResults {
-            let key = item.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            if key.isEmpty {
-                unique.append(item)
-                continue
+    private var pinnedLookupScope: LauncherPinnedLookupScope {
+        LauncherSearchLogic.pinnedLookupScope(for: query)
+    }
+
+    private var normalizedPinnedLookupQuery: String? {
+        LauncherSearchLogic.normalizedPinnedLookupQuery(for: query, scope: pinnedLookupScope)
+    }
+
+    private var shouldInjectFinderResult: Bool {
+        LauncherSearchLogic.shouldInjectFinder(
+            normalizedQuery: normalizedPinnedLookupQuery,
+            scope: pinnedLookupScope
+        )
+    }
+
+    private var quickFolderPinnedResults: [LauncherResult] {
+        guard pinnedLookupScope == .unscoped || pinnedLookupScope == .folders else { return [] }
+        guard let normalized = normalizedPinnedLookupQuery else { return [] }
+
+        return AppConstants.Launcher.QuickFolder.entries.compactMap { entry in
+            let normalizedTitle = entry.title.lowercased()
+            let isMatch = normalizedTitle.contains(normalized)
+                || (normalizedTitle.hasPrefix(normalized)
+                    && normalized.count >= AppConstants.Launcher.QuickFolder.minPrefixMatchLength)
+            guard isMatch else { return nil }
+
+            let folderPath = URL(fileURLWithPath: NSHomeDirectory())
+                .appendingPathComponent(entry.relativePath)
+                .path
+            guard FileManager.default.fileExists(atPath: folderPath) else { return nil }
+
+            return LauncherResult(
+                id: "\(AppConstants.Launcher.QuickFolder.idPrefix)\(normalizedTitle)",
+                kind: .folder,
+                title: entry.title,
+                subtitle: AppConstants.Launcher.QuickFolder.pinnedSubtitle,
+                path: folderPath,
+                score: AppConstants.Launcher.Finder.pinnedScore
+            )
+        }
+    }
+
+    private var finderPinnedResult: LauncherResult {
+        LauncherResult(
+            id: AppConstants.Launcher.Finder.pinnedResultID,
+            kind: .app,
+            title: "Finder",
+            subtitle: AppConstants.Launcher.Finder.pinnedSubtitle,
+            path: AppConstants.Launcher.Finder.appPath,
+            score: AppConstants.Launcher.Finder.pinnedScore
+        )
+    }
+
+    private var backendFilteredResults: [LauncherResult] {
+        var sourceResults = backendResults
+
+        for quickFolder in quickFolderPinnedResults.reversed() {
+            let alreadyPresent = sourceResults.contains { item in
+                item.kind == .folder && item.path == quickFolder.path
             }
-            if seenTitles.insert(key).inserted {
-                unique.append(item)
+            if !alreadyPresent {
+                sourceResults.insert(quickFolder, at: 0)
             }
         }
-        return unique
+
+        if shouldInjectFinderResult {
+            let hasFinder = sourceResults.contains {
+                $0.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == AppConstants.Launcher.Finder.appName
+                    || $0.path == AppConstants.Launcher.Finder.appPath
+            }
+            if !hasFinder {
+                sourceResults.insert(finderPinnedResult, at: 0)
+            }
+        }
+
+        return LauncherSearchLogic.dedupe(results: sourceResults)
+    }
+
+    private var isClipboardQuery: Bool {
+        LauncherClipboardFeature.isClipboardQuery(query)
+    }
+
+    private var clipboardSearchTerm: String? {
+        LauncherClipboardFeature.searchTerm(from: query)
+    }
+
+    private var clipboardResults: [LauncherResult] {
+        guard let clipboardSearchTerm else { return [] }
+
+        return clipboardStore.search(clipboardSearchTerm).map { entry in
+            LauncherClipboardFeature.makeResult(entry: entry, dateFormatter: Self.clipboardSubtitleDateFormatter)
+        }
+    }
+
+    private var displayedResults: [LauncherResult] {
+        isClipboardQuery ? clipboardResults : backendFilteredResults
+    }
+
+    private var isLookupQuery: Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if case .lookup = extractTranslationQuery(from: trimmed) {
+            return true
+        }
+        return false
     }
 
     private var commandNamePart: String {
@@ -90,7 +215,7 @@ struct LauncherView: View {
             return "Warning: sudo command detected"
         }
 
-        if activeCommandID == "calc" {
+        if activeCommandID == AppConstants.Launcher.Command.calc {
             let expr = commandInput.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !expr.isEmpty else { return nil }
             guard CalcCommand.isReadyForEvaluation(expr) else { return nil }
@@ -107,7 +232,7 @@ struct LauncherView: View {
     }
 
     private var hasSudoWarning: Bool {
-        guard isCommandMode, activeCommandID == "shell" else { return false }
+        guard isCommandMode, activeCommandID == AppConstants.Launcher.Command.shell else { return false }
         return ShellCommand.hasSudoWarning(commandInput)
     }
 
@@ -133,14 +258,14 @@ struct LauncherView: View {
                 selectedCommandID = filteredCommands.first?.id
             }
         } else {
-            selectedResultID = filteredResults.first?.id
+            selectedResultID = displayedResults.first?.id
         }
     }
 
     private func moveSelection(_ direction: MoveCommandDirection, shouldAutocompleteCommand: Bool = false) {
         guard !appUIState.showsThemeSettings else { return }
 
-        if isCommandMode && activeCommandID == "kill" {
+        if isCommandMode && activeCommandID == AppConstants.Launcher.Command.kill {
             let suggestions = killSuggestions.prefix(20)
             guard !suggestions.isEmpty else { return }
 
@@ -202,29 +327,29 @@ struct LauncherView: View {
             return
         }
 
-        guard !filteredResults.isEmpty else {
+        guard !displayedResults.isEmpty else {
             selectedResultID = nil
             return
         }
 
         guard let currentID = selectedResultID,
-            let currentIndex = filteredResults.firstIndex(where: { $0.id == currentID })
+            let currentIndex = displayedResults.firstIndex(where: { $0.id == currentID })
         else {
-            selectedResultID = filteredResults.first?.id
+            selectedResultID = displayedResults.first?.id
             return
         }
 
         let nextIndex: Int
         switch direction {
         case .down:
-            nextIndex = (currentIndex + 1) % filteredResults.count
+            nextIndex = (currentIndex + 1) % displayedResults.count
         case .up:
-            nextIndex = (currentIndex - 1 + filteredResults.count) % filteredResults.count
+            nextIndex = (currentIndex - 1 + displayedResults.count) % displayedResults.count
         default:
             return
         }
 
-        selectedResultID = filteredResults[nextIndex].id
+        selectedResultID = displayedResults[nextIndex].id
     }
 
     private func autocompleteSelectedCommand() {
@@ -238,11 +363,12 @@ struct LauncherView: View {
     }
 
     private func enterCommandMode() {
+        showsHelpScreen = false
         isCommandMode = true
         commandInput = ""
         commandFeedback = ""
-        activeCommandID = "calc"
-        selectedCommandID = "calc"
+        activeCommandID = AppConstants.Launcher.Command.calc
+        selectedCommandID = AppConstants.Launcher.Command.calc
         DispatchQueue.main.async {
             isQueryFocused = true
         }
@@ -263,7 +389,7 @@ struct LauncherView: View {
 
     private func handleSubmit() {
         if isCommandMode {
-            if activeCommandID == "kill", let selectedNum = selectedKillSuggestionIndex {
+            if activeCommandID == AppConstants.Launcher.Command.kill, let selectedNum = selectedKillSuggestionIndex {
                 if let (app, _) = killSuggestions.first(where: { $0.1 == selectedNum }) {
                     pendingKillApp = (app, selectedNum)
                 }
@@ -272,8 +398,8 @@ struct LauncherView: View {
             }
         } else {
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let translationTarget = extractTranslationQuery(from: trimmed) {
-                handleTranslation(text: translationTarget)
+            if let translationCommand = extractTranslationQuery(from: trimmed) {
+                handleTranslation(command: translationCommand)
                 isQueryFocused = true
             } else {
                 openSelectedApp()
@@ -285,18 +411,32 @@ struct LauncherView: View {
         }
     }
 
-    private func extractTranslationQuery(from input: String) -> String? {
+    private func extractTranslationQuery(from input: String) -> TranslationCommand? {
         if input.hasPrefix("t\"") {
             let text = String(input.dropFirst(2)).trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? nil : text
+            return text.isEmpty ? nil : .network(text)
+        }
+
+        if input.count >= 3, input.prefix(3).lowercased() == "tw\"" {
+            let text = String(input.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : .lookup(text)
         }
 
         if input.lowercased().hasPrefix("tr ") {
             let text = String(input.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? nil : text
+            return text.isEmpty ? nil : .network(text)
         }
 
         return nil
+    }
+
+    private func handleTranslation(command: TranslationCommand) {
+        switch command {
+        case .network(let text):
+            handleNetworkTranslation(text: text)
+        case .lookup(let text):
+            handleLookupTranslation(text: text)
+        }
     }
 
     private func runCommandModeAction() {
@@ -310,7 +450,7 @@ struct LauncherView: View {
         }
 
         switch resolvedCommand.id {
-        case "shell":
+        case AppConstants.Launcher.Command.shell:
             guard !commandArgsPart.isEmpty else {
                 setCommandError("Usage: /shell <command>")
                 return
@@ -320,7 +460,7 @@ struct LauncherView: View {
                 commandFeedback = message
                 isQueryFocused = true
             }
-        case "calc":
+        case AppConstants.Launcher.Command.calc:
             guard !commandArgsPart.isEmpty else {
                 setCommandError("Usage: /calc <expression>")
                 return
@@ -334,7 +474,7 @@ struct LauncherView: View {
             case .error(let message):
                 setCommandError(message)
             }
-        case "kill":
+        case AppConstants.Launcher.Command.kill:
             let apps = KillCommand.getRunningApps()
             let searchTerm = commandArgsPart.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             let matched = KillCommand.filterApps(searchTerm: searchTerm, from: apps)
@@ -357,7 +497,7 @@ struct LauncherView: View {
                     commandFeedback = message
                 }
             }
-        case "sys":
+        case AppConstants.Launcher.Command.sys:
             commandFeedback = ""
         default:
             setCommandError("Unsupported command")
@@ -383,19 +523,33 @@ struct LauncherView: View {
 
     private func openSelectedApp() {
         guard let selectedResultID,
-            let selected = filteredResults.first(where: { $0.id == selectedResultID })
+            let selected = displayedResults.first(where: { $0.id == selectedResultID })
         else { return }
 
         switch selected.kind {
         case .app:
             openTarget(selected.path)
             bridge.recordUsage(candidateID: selected.id, action: "open_app")
+            hideLauncherWindow()
         case .file:
             openTarget(selected.path)
             bridge.recordUsage(candidateID: selected.id, action: "open_file")
+            hideLauncherWindow()
         case .folder:
             openTarget(selected.path)
-            bridge.recordUsage(candidateID: selected.id, action: "open_folder")
+            if !selected.id.hasPrefix(AppConstants.Launcher.QuickFolder.idPrefix) {
+                bridge.recordUsage(candidateID: selected.id, action: "open_folder")
+            }
+            hideLauncherWindow()
+        case .clipboard:
+            guard let content = selected.clipboardContent, !content.isEmpty else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(content, forType: .string)
+            showBanner(
+                AppConstants.Launcher.Clipboard.copiedBanner,
+                style: .success,
+                duration: AppConstants.Launcher.Clipboard.copiedBannerDuration
+            )
         }
     }
 
@@ -410,14 +564,117 @@ struct LauncherView: View {
         NSWorkspace.shared.open(URL(fileURLWithPath: target))
     }
 
+    private func revealSelectedInFinder() {
+        guard !isCommandMode,
+              let selectedID = selectedResultID,
+              let selected = displayedResults.first(where: { $0.id == selectedID })
+        else { return }
+
+        switch selected.kind {
+        case .app, .file, .folder:
+            if selected.path.contains(":") && !selected.path.hasPrefix("/") {
+                if let url = URL(string: selected.path) {
+                    NSWorkspace.shared.open(url)
+                } else {
+                    showBanner(
+                        AppConstants.Launcher.Finder.cannotRevealBanner,
+                        style: .info,
+                        duration: AppConstants.Launcher.Clipboard.infoBannerDuration
+                    )
+                }
+            } else {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: selected.path)])
+            }
+        case .clipboard:
+            showBanner(
+                AppConstants.Launcher.Clipboard.nonFileBanner,
+                style: .info,
+                duration: AppConstants.Launcher.Clipboard.infoBannerDuration
+            )
+        }
+    }
+
+    private func copySelectedResultToPasteboard() -> Bool {
+        guard !isCommandMode,
+              let selectedID = selectedResultID,
+              let selected = displayedResults.first(where: { $0.id == selectedID })
+        else { return false }
+
+        guard selected.kind == .file || selected.kind == .folder else { return false }
+
+        let targetURL = URL(fileURLWithPath: selected.path)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        let didWrite = pasteboard.writeObjects([targetURL as NSURL, selected.path as NSString])
+
+        if didWrite {
+            showBanner("Copied \(selected.kind.rawValue) to pasteboard", style: .success, duration: 1.0)
+        } else {
+            showBanner("Copy failed", style: .error, duration: 1.0)
+        }
+
+        return didWrite
+    }
+
+    private func toggleHelpScreen() {
+        guard !appUIState.showsThemeSettings else { return }
+        guard !isCommandMode else {
+            showBanner(
+                AppConstants.Launcher.Help.commandModeInfoBanner,
+                style: .info,
+                duration: AppConstants.Launcher.Clipboard.infoBannerDuration
+            )
+            return
+        }
+        showsHelpScreen.toggle()
+    }
+
+    @discardableResult
+    private func dismissHelpIfVisible() -> Bool {
+        guard showsHelpScreen else { return false }
+        showsHelpScreen = false
+        return true
+    }
+
+    private func deleteClipboardResult(resultID: String) {
+        guard let entryID = LauncherClipboardFeature.entryID(fromResultID: resultID) else { return }
+        clipboardStore.deleteEntry(id: entryID)
+
+        if selectedResultID == resultID {
+            selectedResultID = displayedResults.first?.id
+        }
+
+        showBanner(
+            AppConstants.Launcher.Clipboard.deletedBanner,
+            style: .info,
+            duration: AppConstants.Launcher.Clipboard.infoBannerDuration
+        )
+    }
+
+    private func refreshClipboardSelectionIfNeeded() {
+        guard !isCommandMode, isClipboardQuery else { return }
+
+        if let selectedResultID,
+           displayedResults.contains(where: { $0.id == selectedResultID }) {
+            return
+        }
+
+        selectedResultID = displayedResults.first?.id
+    }
+
     private func refreshSearchResults() {
         guard !isCommandMode else { return }
+        guard !isClipboardQuery else {
+            searchTask?.cancel()
+            setInitialSelection()
+            return
+        }
 
         let currentQuery = query
         let searchLimit = AppConstants.Launcher.defaultSearchLimit
         searchTask?.cancel()
         searchTask = Task {
-            try? await Task.sleep(nanoseconds: 70_000_000)
+            try? await Task.sleep(nanoseconds: AppConstants.Launcher.searchDebounceNanoseconds)
             guard !Task.isCancelled else { return }
 
             let results = await Task.detached(priority: .userInitiated) {
@@ -437,8 +694,8 @@ struct LauncherView: View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        if let translationTarget = extractTranslationQuery(from: trimmed) {
-            handleTranslation(text: translationTarget)
+        if let translationCommand = extractTranslationQuery(from: trimmed) {
+            handleTranslation(command: translationCommand)
             isQueryFocused = true
             return
         }
@@ -488,13 +745,13 @@ struct LauncherView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard token == focusRequestToken else { return }
                 guard !appUIState.showsThemeSettings else { return }
-                guard let window = NSApplication.shared.windows.first else { return }
+                guard let window = launcherWindow() else { return }
 
                 if !window.isVisible {
                     window.makeKeyAndOrderFront(nil)
                 } else {
                     window.makeKey()
-                    window.orderFrontRegardless()
+                    window.orderFront(nil)
                 }
 
                 if let responder = findEditableTextField(in: window.contentView) {
@@ -504,6 +761,18 @@ struct LauncherView: View {
                 isQueryFocused = true
             }
         }
+    }
+
+    private func launcherWindow() -> NSWindow? {
+        if let keyWindow = NSApplication.shared.keyWindow {
+            return keyWindow
+        }
+
+        if let visibleWindow = NSApplication.shared.windows.first(where: { $0.isVisible }) {
+            return visibleWindow
+        }
+
+        return NSApplication.shared.windows.first
     }
 
     private func findEditableTextField(in view: NSView?) -> NSView? {
@@ -527,7 +796,7 @@ struct LauncherView: View {
     }
 
     private func toggleWindowVisibility() {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window = launcherWindow() else { return }
 
         if window.isVisible && NSApplication.shared.isActive {
             hideLauncherWindow()
@@ -540,11 +809,133 @@ struct LauncherView: View {
     }
 
     private func hideLauncherWindow() {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window = launcherWindow() else { return }
         window.orderOut(nil)
+        NSApp.hide(nil)
+        refreshClipboardMonitoringMode()
     }
 
-    private func handleTranslation(text: String) {
+    private func refreshClipboardMonitoringMode() {
+        let isVisible = launcherWindow()?.isVisible ?? false
+        if NSApplication.shared.isActive && isVisible {
+            clipboardStore.setMonitoringMode(.foreground)
+        } else {
+            clipboardStore.setMonitoringMode(.background)
+        }
+    }
+
+    private func handleLookupTranslation(text: String) {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            showBanner("Type text after tw\" to translate", style: .error, duration: 3.2)
+            return
+        }
+
+        Task {
+            let results = await fetchAllTranslations(for: normalized)
+            await MainActor.run {
+                lookupDefinition = LookupDefinition(
+                    query: normalized,
+                    sourceLabel: "Input",
+                    sections: [
+                        LookupTranslationSection(label: "English", translated: results.en.translated, dictionaryDefinition: results.en.dictionaryDefinition, failed: results.en.translated == nil),
+                        LookupTranslationSection(label: "Tiếng Việt", translated: results.vi.translated, dictionaryDefinition: results.vi.dictionaryDefinition, failed: results.vi.translated == nil),
+                        LookupTranslationSection(label: "日本語", translated: results.ja.translated, dictionaryDefinition: results.ja.dictionaryDefinition, failed: results.ja.translated == nil),
+                    ]
+                )
+            }
+        }
+    }
+
+    private func previewLookupDefinition(for input: String) {
+        lookupPreviewTask?.cancel()
+
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard case .lookup(let text) = extractTranslationQuery(from: trimmed) else {
+            lookupDefinition = nil
+            return
+        }
+
+        let normalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedText.isEmpty else {
+            lookupDefinition = nil
+            return
+        }
+
+        let expectedQuery = trimmed
+        lookupPreviewTask = Task {
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            guard !Task.isCancelled else { return }
+
+            let results = await fetchAllTranslations(for: normalizedText)
+
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                let latestQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard latestQuery == expectedQuery else { return }
+                lookupDefinition = LookupDefinition(
+                    query: normalizedText,
+                    sourceLabel: "Input",
+                    sections: [
+                        LookupTranslationSection(label: "English", translated: results.en.translated, dictionaryDefinition: results.en.dictionaryDefinition, failed: results.en.translated == nil),
+                        LookupTranslationSection(label: "Tiếng Việt", translated: results.vi.translated, dictionaryDefinition: results.vi.dictionaryDefinition, failed: results.vi.translated == nil),
+                        LookupTranslationSection(label: "日本語", translated: results.ja.translated, dictionaryDefinition: results.ja.dictionaryDefinition, failed: results.ja.translated == nil),
+                    ]
+                )
+            }
+        }
+    }
+
+    private struct TranslationResult {
+        let translated: String?
+        let dictionaryDefinition: LookupPresentation?
+    }
+
+    private func fetchAllTranslations(for text: String) async -> (en: TranslationResult, vi: TranslationResult, ja: TranslationResult) {
+        await withTaskGroup(of: (String, TranslationResult).self) { group in
+            group.addTask {
+                let translated = self.bridge.translate(text: text, targetLang: "en")?.translated
+                let definition = translated.flatMap { DictionaryParser.parse(self.fetchRawDefinition(for: $0) ?? "") }
+                return ("en", TranslationResult(translated: translated, dictionaryDefinition: definition))
+            }
+            group.addTask {
+                let translated = self.bridge.translate(text: text, targetLang: "vi")?.translated
+                let definition = translated.flatMap { DictionaryParser.parse(self.fetchRawDefinition(for: $0) ?? "") }
+                return ("vi", TranslationResult(translated: translated, dictionaryDefinition: definition))
+            }
+            group.addTask {
+                let translated = self.bridge.translate(text: text, targetLang: "ja")?.translated
+                let definition = translated.flatMap { DictionaryParser.parse(self.fetchRawDefinition(for: $0) ?? "") }
+                return ("ja", TranslationResult(translated: translated, dictionaryDefinition: definition))
+            }
+
+            var en = TranslationResult(translated: nil, dictionaryDefinition: nil)
+            var vi = TranslationResult(translated: nil, dictionaryDefinition: nil)
+            var ja = TranslationResult(translated: nil, dictionaryDefinition: nil)
+            for await (lang, result) in group {
+                switch lang {
+                case "en": en = result
+                case "vi": vi = result
+                case "ja": ja = result
+                default: break
+                }
+            }
+            return (en, vi, ja)
+        }
+    }
+
+    private func fetchRawDefinition(for text: String) -> String? {
+        let nsText = text as NSString
+        let range = CFRange(location: 0, length: nsText.length)
+        guard let unmanaged = DCSCopyTextDefinition(nil, text as CFString, range) else {
+            return nil
+        }
+        let raw = (unmanaged.takeRetainedValue() as String)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return raw.isEmpty ? nil : raw
+    }
+
+    private func handleNetworkTranslation(text: String) {
         let result = bridge.translate(text: text)
         if let translated = result?.translated, !translated.isEmpty {
             showBanner(
@@ -593,6 +984,8 @@ struct LauncherView: View {
     }
 
     var body: some View {
+        let windowCornerRadius = AppConstants.Launcher.windowCornerRadius
+
         ZStack {
             themedBackground
 
@@ -635,7 +1028,7 @@ struct LauncherView: View {
                     }
 
                     if isCommandMode {
-                        if activeCommandID == "kill" {
+                        if activeCommandID == AppConstants.Launcher.Command.kill {
                             KillCommandView(
                                 suggestions: Array(killSuggestions),
                                 selectedIndex: selectedKillSuggestionIndex,
@@ -656,7 +1049,7 @@ struct LauncherView: View {
                                     selectedKillSuggestionIndex = killSuggestions.first?.1
                                 }
                             }
-                        } else if activeCommandID == "sys" {
+                        } else if activeCommandID == AppConstants.Launcher.Command.sys {
                             SystemInfoView(items: SystemInfoCommand.getSystemInfoItems(), themeStore: themeStore)
                         } else {
                             CommandListView(
@@ -668,30 +1061,43 @@ struct LauncherView: View {
                             )
                         }
 
-                        if activeCommandID != "sys" {
+                        if activeCommandID != AppConstants.Launcher.Command.sys {
                             CommandFeedbackView(
                                 message: liveCommandPreview ?? (commandFeedback.isEmpty ? AppConstants.Launcher.commandEmptyMessage : commandFeedback),
                                 themeStore: themeStore
                             )
                         }
+                    } else if isLookupQuery {
+                        LookupDefinitionPanelView(definition: lookupDefinition, themeStore: themeStore)
                     } else {
-                        HStack(spacing: 0) {
-                            ResultsListView(
-                                results: filteredResults,
-                                selectedID: selectedResultID,
-                                themeStore: themeStore,
-                                onSelect: { selectedResultID = $0 },
-                                onOpen: { _ in openSelectedApp() }
-                            )
+                        if showsHelpScreen {
+                            LauncherHelpScreenView(themeStore: themeStore)
+                        } else if isClipboardQuery && displayedResults.isEmpty {
+                            ClipboardEmptyStateView(themeStore: themeStore)
+                        } else {
+                            HStack(spacing: 0) {
+                                ResultsListView(
+                                    results: displayedResults,
+                                    selectedID: selectedResultID,
+                                    themeStore: themeStore,
+                                    onSelect: { selectedResultID = $0 },
+                                    onOpen: { _ in openSelectedApp() }
+                                )
 
-                            if let selectedID = selectedResultID,
-                               let selectedResult = filteredResults.first(where: { $0.id == selectedID }) {
-                                Rectangle()
-                                    .fill(.white.opacity(0.08))
-                                    .frame(width: 1)
-                                    .padding(.vertical, 4)
+                                if let selectedID = selectedResultID,
+                                   let selectedResult = displayedResults.first(where: { $0.id == selectedID }) {
+                                    Rectangle()
+                                        .fill(.white.opacity(0.08))
+                                        .frame(width: 1)
+                                        .padding(.vertical, 4)
 
-                                ResultPreviewView(result: selectedResult)
+                                    ResultPreviewView(
+                                        result: selectedResult,
+                                        onDeleteClipboard: selectedResult.kind == .clipboard
+                                            ? { deleteClipboardResult(resultID: selectedResult.id) }
+                                            : nil
+                                    )
+                                }
                             }
                         }
                     }
@@ -707,18 +1113,36 @@ struct LauncherView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .font(themeStore.uiFont())
             .foregroundStyle(themeStore.fontColor())
-            .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(.black.opacity(0.16), in: RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture {
                 focusActiveInput()
             }
         }
         .background(Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(), lineWidth: themeStore.borderLineWidth())
-        )
+        .clipShape(RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous))
+        .overlay {
+            let borderWidth = themeStore.borderLineWidth()
+            if borderWidth > 0 {
+                RoundedRectangle(cornerRadius: windowCornerRadius, style: .continuous)
+                    .strokeBorder(
+                        hasSudoWarning ? Color.orange.opacity(0.95) : themeStore.borderColor(),
+                        lineWidth: borderWidth
+                    )
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if shouldShowTestHint {
+                Text("TEST APP")
+                    .font(themeStore.uiFont(size: CGFloat(max(10, themeStore.settings.fontSize - 3)), weight: .bold))
+                    .foregroundStyle(Color.red.opacity(0.95))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.35), in: Capsule())
+                    .padding(.top, 8)
+                    .padding(.trailing, 10)
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             Link("© 2026 by Kunkka", destination: URL(string: "https://github.com/kunkka19xx")!)
                 .font(themeStore.uiFont(size: CGFloat(max(9, themeStore.settings.fontSize - 4)), weight: .regular))
@@ -731,16 +1155,30 @@ struct LauncherView: View {
             refreshSearchResults()
             startKeyboardNavigationIfNeeded()
             focusActiveInput()
+            refreshClipboardMonitoringMode()
         }
         .onDisappear {
             searchTask?.cancel()
             bannerTask?.cancel()
+            lookupPreviewTask?.cancel()
             keyboardMonitor.stop()
+            clipboardStore.setMonitoringMode(.background)
         }
         .onChange(of: query) { _, _ in
+            previewLookupDefinition(for: query)
             if !isCommandMode {
-                refreshSearchResults()
+                if showsHelpScreen {
+                    showsHelpScreen = false
+                }
+                if isClipboardQuery {
+                    setInitialSelection()
+                } else {
+                    refreshSearchResults()
+                }
             }
+        }
+        .onReceive(clipboardStore.$entries) { _ in
+            refreshClipboardSelectionIfNeeded()
         }
         .onChange(of: commandInput) { _, _ in
             if isCommandMode {
@@ -749,6 +1187,7 @@ struct LauncherView: View {
         }
         .onChange(of: appUIState.showsThemeSettings) { _, showsSettings in
             if showsSettings {
+                showsHelpScreen = false
                 keyboardMonitor.stop()
                 NotificationCenter.default.post(name: .lookFocusSettingsInputRequested, object: nil)
             } else {
@@ -763,6 +1202,7 @@ struct LauncherView: View {
             NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
         ) { _ in
             focusActiveInput()
+            refreshClipboardMonitoringMode()
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
@@ -770,6 +1210,7 @@ struct LauncherView: View {
             if !appUIState.showsThemeSettings {
                 hideLauncherWindow()
             }
+            refreshClipboardMonitoringMode()
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookReloadConfigRequested)) { _ in
             reloadConfig()
@@ -779,12 +1220,14 @@ struct LauncherView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookActivateLauncherRequested)) { _ in
             activateLauncherModeAndFocus()
+            refreshClipboardMonitoringMode()
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookHideLauncherRequested)) { _ in
             hideLauncherWindow()
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookToggleWindowRequested)) { _ in
             toggleWindowVisibility()
+            refreshClipboardMonitoringMode()
         }
     }
 
@@ -877,11 +1320,23 @@ struct LauncherView: View {
                 selectedKillSuggestionIndex = nil
                 commandInput = ""
                 commandFeedback = ""
-                activeCommandID = "calc"
-                selectedCommandID = "calc"
+                activeCommandID = AppConstants.Launcher.Command.calc
+                selectedCommandID = AppConstants.Launcher.Command.calc
             },
             onWebSearch: {
                 performWebSearchFromQuery()
+            },
+            onRevealInFinder: {
+                revealSelectedInFinder()
+            },
+            onCopySelection: {
+                copySelectedResultToPasteboard()
+            },
+            onToggleHelp: {
+                toggleHelpScreen()
+            },
+            onDismissHelpIfVisible: {
+                dismissHelpIfVisible()
             },
             onSelectCommandByIndex: { [self] index in
                 guard index > 0 && index <= commandCatalog.count else { return }

@@ -1,4 +1,5 @@
 use crate::config::RuntimeConfig;
+use crate::index::{FILE_CANDIDATE_ID_PREFIX, FOLDER_CANDIDATE_ID_PREFIX};
 use look_indexing::{Candidate, CandidateKind};
 use std::collections::HashSet;
 use std::fs;
@@ -76,10 +77,10 @@ fn walk_files(
                     continue;
                 }
 
-                let key = format!("folder:{}", path_str.to_lowercase());
+                let key = format!("{FOLDER_CANDIDATE_ID_PREFIX}{}", path_str.to_lowercase());
                 if seen.insert(key.clone()) {
                     let mut c = Candidate::new(&key, CandidateKind::Folder, name, path_str);
-                    c.subtitle = Some("folder".to_string());
+                    c.subtitle = Some(CandidateKind::Folder.as_str().to_string());
                     out.push(c);
                 }
                 walk_files(
@@ -95,10 +96,10 @@ fn walk_files(
             }
         } else if file_type.is_file() {
             *file_count += 1;
-            let key = format!("file:{}", path_str.to_lowercase());
+            let key = format!("{FILE_CANDIDATE_ID_PREFIX}{}", path_str.to_lowercase());
             if seen.insert(key.clone()) {
                 let mut c = Candidate::new(&key, CandidateKind::File, name, path_str);
-                c.subtitle = Some("file".to_string());
+                c.subtitle = Some(CandidateKind::File.as_str().to_string());
                 out.push(c);
             }
         }

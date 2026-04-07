@@ -149,7 +149,7 @@ struct ThemeSettingsView: View {
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
                     .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
 
-                LabeledSlider(title: "Border Thick", value: $settings.borderThickness, range: 0.25...6)
+                LabeledSlider(title: "Border Thick", value: $settings.borderThickness, range: 0...6)
                 LabeledSlider(title: "Border Red", value: $settings.borderRed, range: 0...1)
                 LabeledSlider(title: "Border Green", value: $settings.borderGreen, range: 0...1)
                 LabeledSlider(title: "Border Blue", value: $settings.borderBlue, range: 0...1)
@@ -366,16 +366,6 @@ struct ThemeSettingsView: View {
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
                         .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
 
-                    Toggle(isOn: $settings.translateAllowNetwork) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Enable network translation")
-                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                            Text("Allow t\"... to send text to translation API")
-                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
-                        }
-                    }
-
                     HStack(spacing: 10) {
                         Text("Backend Log Level")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
@@ -430,45 +420,9 @@ struct ThemeSettingsView: View {
     private var shortcutsTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                ShortcutSection(
-                    title: "Core launcher",
-                    items: [
-                        ShortcutItem(keys: "Tab", action: "Select next result"),
-                        ShortcutItem(keys: "Shift+Tab", action: "Select previous result"),
-                        ShortcutItem(keys: "Up / Down", action: "Move selection"),
-                        ShortcutItem(keys: "Cmd+Enter", action: "Search query on Google"),
-                        ShortcutItem(keys: "Cmd+/", action: "Enter command mode"),
-                        ShortcutItem(keys: "Esc", action: "Back to app list (in command mode)"),
-                        ShortcutItem(keys: "Shift+Esc", action: "Hide launcher"),
-                    ]
-                )
-
-                ShortcutSection(
-                    title: "Panels",
-                    items: [
-                        ShortcutItem(keys: "Cmd+Shift+,", action: "Open/close theme and docs panel"),
-                        ShortcutItem(keys: "Cmd+Shift+;", action: "Reload .look.config"),
-                        ShortcutItem(keys: "Save Config", action: "Write current UI settings to .look.config"),
-                    ]
-                )
-
-                ShortcutSection(
-                    title: "Zoom",
-                    items: [
-                        ShortcutItem(keys: "Cmd+-", action: "Zoom out UI scale"),
-                        ShortcutItem(keys: "Cmd+=", action: "Zoom in UI scale"),
-                        ShortcutItem(keys: "Cmd+0", action: "Reset UI scale"),
-                    ]
-                )
-
-                ShortcutSection(
-                    title: "Theme controls",
-                    items: [
-                        ShortcutItem(keys: "Appearance tab", action: "Tint, blur material, blur opacity"),
-                        ShortcutItem(keys: "Advanced tab", action: "Background, indexing, privacy, logging controls"),
-                        ShortcutItem(keys: "Shortcuts tab", action: "In-app keyboard documentation"),
-                    ]
-                )
+                ForEach(ShortcutDocs.sections) { section in
+                    ShortcutSection(title: section.title, items: section.items)
+                }
 
                 Text("This panel is intended as living documentation. We can add command and workflow docs here as features grow.")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
@@ -499,6 +453,73 @@ private struct ShortcutItem: Identifiable {
     let id = UUID()
     let keys: String
     let action: String
+}
+
+private struct ShortcutSectionData: Identifiable {
+    let id = UUID()
+    let title: String
+    let items: [ShortcutItem]
+}
+
+private enum ShortcutDocs {
+    static let sections: [ShortcutSectionData] = [
+        ShortcutSectionData(
+            title: "Core launcher",
+            items: [
+                ShortcutItem(keys: "Tab", action: "Select next result"),
+                ShortcutItem(keys: "Shift+Tab", action: "Select previous result"),
+                ShortcutItem(keys: "Up / Down", action: "Move selection"),
+                ShortcutItem(keys: "Cmd+C", action: "Copy selected file/folder to pasteboard"),
+                ShortcutItem(keys: "Cmd+F", action: "Reveal selected app/file/folder in Finder"),
+                ShortcutItem(keys: "Cmd+Enter", action: "Search query on Google"),
+                ShortcutItem(keys: "Cmd+/", action: "Enter command mode"),
+                ShortcutItem(keys: "Cmd+H", action: "Toggle in-window keyboard help screen"),
+                ShortcutItem(keys: "Esc", action: "Back to app list (in command mode)"),
+                ShortcutItem(keys: "Shift+Esc", action: "Hide launcher"),
+            ]
+        ),
+        ShortcutSectionData(
+            title: "Search prefixes",
+            items: [
+                ShortcutItem(keys: "a\"", action: "Apps-only query"),
+                ShortcutItem(keys: "f\"", action: "Files-only query"),
+                ShortcutItem(keys: "d\"", action: "Folders-only query"),
+                ShortcutItem(keys: "r\"", action: "Regex query"),
+                ShortcutItem(keys: "c\"", action: "Clipboard history query"),
+            ]
+        ),
+        ShortcutSectionData(
+            title: "Clipboard history",
+            items: [
+                ShortcutItem(keys: "Enter", action: "Copy selected history item back to clipboard"),
+                ShortcutItem(keys: "Delete button", action: "Remove selected clipboard item from look history"),
+            ]
+        ),
+        ShortcutSectionData(
+            title: "Panels",
+            items: [
+                ShortcutItem(keys: "Cmd+Shift+,", action: "Open/close theme and docs panel"),
+                ShortcutItem(keys: "Cmd+Shift+;", action: "Reload .look.config"),
+                ShortcutItem(keys: "Save Config", action: "Write current UI settings to .look.config"),
+            ]
+        ),
+        ShortcutSectionData(
+            title: "Zoom",
+            items: [
+                ShortcutItem(keys: "Cmd+-", action: "Zoom out UI scale"),
+                ShortcutItem(keys: "Cmd+=", action: "Zoom in UI scale"),
+                ShortcutItem(keys: "Cmd+0", action: "Reset UI scale"),
+            ]
+        ),
+        ShortcutSectionData(
+            title: "Theme controls",
+            items: [
+                ShortcutItem(keys: "Appearance tab", action: "Tint, blur material, blur opacity"),
+                ShortcutItem(keys: "Advanced tab", action: "Background, indexing, privacy, logging controls"),
+                ShortcutItem(keys: "Shortcuts tab", action: "In-app keyboard documentation"),
+            ]
+        ),
+    ]
 }
 
 private struct ShortcutSection: View {

@@ -1,6 +1,7 @@
 pub mod action;
 pub mod config;
 pub mod index;
+mod normalize;
 mod query;
 pub mod result;
 mod scoring;
@@ -132,6 +133,7 @@ fn looks_like_demo_seed(candidates: &[Candidate]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scoring::default_browse_score;
 
     fn sample_engine() -> QueryEngine {
         QueryEngine::new(vec![
@@ -224,6 +226,20 @@ mod tests {
     }
 
     #[test]
+    fn vietnamese_diacritics_query_matches_ascii_titles() {
+        let engine = QueryEngine::new(vec![Candidate::new(
+            "app.terminal",
+            CandidateKind::App,
+            "Terminal",
+            "/System/Applications/Utilities/Terminal.app",
+        )]);
+
+        let results = engine.search_scored("tẻrminal", 10);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0.id, "app.terminal");
+    }
+
+    #[test]
     fn empty_query_prioritizes_recent_and_frequent_apps() {
         let mut frequent_app = Candidate::new(
             "app.frequent",
@@ -268,6 +284,78 @@ mod tests {
         assert!(
             ordered_ids.iter().position(|id| *id == "folder.docs")
                 < ordered_ids.iter().position(|id| *id == "file.notes")
+        );
+    }
+
+    #[test]
+    fn empty_query_can_prioritize_frequent_settings_entries() {
+        let now = 1_775_462_400; // 2026-04-06 16:00:00 UTC
+
+        let mut display_setting = Candidate::new(
+            "setting:com.apple.displays-settings.extension",
+            CandidateKind::App,
+            "Display",
+            "x-apple.systempreferences:com.apple.displays-settings.extension",
+        );
+        display_setting.subtitle = Some("System Settings display monitor".to_string());
+        display_setting.use_count = 16;
+        display_setting.last_used_at_unix_s = Some(now - 60 * 60 * 20);
+
+        let mut newly_opened_app = Candidate::new(
+            "app.new",
+            CandidateKind::App,
+            "Newly Opened",
+            "/Applications/Newly Opened.app",
+        );
+        newly_opened_app.use_count = 1;
+        newly_opened_app.last_used_at_unix_s = Some(now);
+
+        assert!(
+            default_browse_score(&display_setting, now)
+                > default_browse_score(&newly_opened_app, now)
+        );
+
+        let engine = QueryEngine::new(vec![newly_opened_app, display_setting]);
+        let results = engine.search_scored("", 10);
+        assert_eq!(
+            results.first().map(|(candidate, _)| candidate.id.as_str()),
+            Some("setting:com.apple.displays-settings.extension")
+        );
+    }
+
+    #[test]
+    fn empty_query_prefers_more_recent_app_when_usage_is_equal() {
+        let now = 1_775_462_400; // 2026-04-06 16:00:00 UTC
+
+        let mut display_setting = Candidate::new(
+            "setting:com.apple.displays-settings.extension",
+            CandidateKind::App,
+            "Display",
+            "x-apple.systempreferences:com.apple.displays-settings.extension",
+        );
+        display_setting.subtitle = Some("System Settings display monitor".to_string());
+        display_setting.use_count = 1;
+        display_setting.last_used_at_unix_s = Some(now - 60 * 60 * 12);
+
+        let mut newly_opened_app = Candidate::new(
+            "app.new",
+            CandidateKind::App,
+            "Newly Opened",
+            "/Applications/Newly Opened.app",
+        );
+        newly_opened_app.use_count = 1;
+        newly_opened_app.last_used_at_unix_s = Some(now);
+
+        assert!(
+            default_browse_score(&newly_opened_app, now)
+                > default_browse_score(&display_setting, now)
+        );
+
+        let engine = QueryEngine::new(vec![display_setting, newly_opened_app]);
+        let results = engine.search_scored("", 10);
+        assert_eq!(
+            results.first().map(|(candidate, _)| candidate.id.as_str()),
+            Some("app.new")
         );
     }
 
