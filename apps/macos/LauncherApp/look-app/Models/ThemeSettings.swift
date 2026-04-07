@@ -123,7 +123,6 @@ struct ThemeSettings: Codable {
     var backgroundImageBlur: Double = 8
     var fileScanDepth: Int = 4
     var fileScanLimit: Int = 8000
-    var translateAllowNetwork: Bool = false
     var backendLogLevel: BackendLogLevel = .error
     var launchAtLogin: Bool = true
 

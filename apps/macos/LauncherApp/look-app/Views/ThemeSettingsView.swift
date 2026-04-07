@@ -366,16 +366,6 @@ struct ThemeSettingsView: View {
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
                         .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
 
-                    Toggle(isOn: $settings.translateAllowNetwork) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Enable network translation")
-                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                            Text("Allow t\"... to send text to translation API")
-                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
-                        }
-                    }
-
                     HStack(spacing: 10) {
                         Text("Backend Log Level")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)

@@ -321,6 +321,12 @@ You can also configure backend indexing behavior with a user config file:
 - first launch creates this file automatically with defaults if it does not exist
 - live reload: press `Cmd+Shift+;` after editing the file
 
+Local dev run note (repository `make app-run`):
+
+- local dev launch uses `LOOK_CONFIG_PATH=$HOME/.look.dev.config` by default
+- local dev launch exports `LOOK_DEV_HINT=1`, and the app shows a red `TEST APP` badge
+- this helps distinguish local test app from installed release/Homebrew app
+
 Supported config keys (`key=value`):
 
 Backend indexing keys:

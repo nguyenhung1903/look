@@ -85,7 +85,6 @@ final class ThemeStore: ObservableObject {
         upsertConfigLine(&lines, key: "ui_border_opacity", value: String(format: "%.2f", settings.borderOpacity))
         upsertConfigLine(&lines, key: "file_scan_depth", value: String(settings.fileScanDepth))
         upsertConfigLine(&lines, key: "file_scan_limit", value: String(settings.fileScanLimit))
-        upsertConfigLine(&lines, key: "translate_allow_network", value: settings.translateAllowNetwork ? "true" : "false")
         upsertConfigLine(&lines, key: "backend_log_level", value: settings.backendLogLevel.rawValue)
         upsertConfigLine(&lines, key: "launch_at_login", value: settings.launchAtLogin ? "true" : "false")
 
@@ -274,10 +273,6 @@ final class ThemeStore: ObservableObject {
                 if let parsed = parsePositiveInt(value) {
                     settings.fileScanLimit = parsed
                 }
-            case "translate_allow_network":
-                if let parsed = parseBool(value) {
-                    settings.translateAllowNetwork = parsed
-                }
             case "backend_log_level":
                 if let parsed = parseBackendLogLevel(value) {
                     settings.backendLogLevel = parsed
@@ -430,7 +425,6 @@ file_scan_roots=Desktop,Documents,Downloads
 file_scan_depth=4
 file_scan_limit=8000
 file_exclude_paths=
-translate_allow_network=false
 backend_log_level=error
 launch_at_login=true
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data

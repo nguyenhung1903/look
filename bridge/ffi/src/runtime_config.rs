@@ -5,7 +5,6 @@ use std::sync::{Mutex, OnceLock};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RuntimeConfig {
-    pub(crate) translate_allow_network: bool,
     pub(crate) log_level: LogLevel,
 }
 
@@ -27,10 +26,6 @@ pub(crate) fn reload_runtime_config() {
     } else {
         let _ = RUNTIME_CONFIG.set(Mutex::new(loaded));
     }
-}
-
-pub(crate) fn network_translation_allowed() -> bool {
-    with_runtime_config(|cfg| cfg.translate_allow_network)
 }
 
 pub(crate) fn log_debug(message: &str) {
@@ -81,14 +76,6 @@ fn load_runtime_config() -> RuntimeConfig {
         }
     }
 
-    let translate_allow_network = env_bool("LOOK_TRANSLATE_ALLOW_NETWORK")
-        .or_else(|| {
-            from_file
-                .get("translate_allow_network")
-                .and_then(|v| parse_bool(v))
-        })
-        .unwrap_or(false);
-
     let log_level = env::var("LOOK_LOG_LEVEL")
         .ok()
         .and_then(|v| parse_log_level(&v))
@@ -99,10 +86,7 @@ fn load_runtime_config() -> RuntimeConfig {
         })
         .unwrap_or(LogLevel::Error);
 
-    RuntimeConfig {
-        translate_allow_network,
-        log_level,
-    }
+    RuntimeConfig { log_level }
 }
 
 fn default_config_path() -> PathBuf {
@@ -114,18 +98,6 @@ fn default_config_path() -> PathBuf {
 
     let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home).join(".look.config")
-}
-
-fn env_bool(name: &str) -> Option<bool> {
-    env::var(name).ok().and_then(|value| parse_bool(&value))
-}
-
-fn parse_bool(value: &str) -> Option<bool> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => None,
-    }
 }
 
 fn parse_log_level(value: &str) -> Option<LogLevel> {

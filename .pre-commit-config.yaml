@@ -26,6 +26,13 @@ repos:
         pass_filenames: false
         types: [rust]
 
+      - id: cargo-fmt-ffi
+        name: cargo fmt (ffi workspace)
+        entry: cargo fmt --manifest-path bridge/ffi/Cargo.toml --all -- --check
+        language: system
+        pass_filenames: false
+        types: [rust]
+
       - id: cargo-check-core
         name: cargo check (core workspace)
         entry: cargo check --workspace --manifest-path core/Cargo.toml
