@@ -1,4 +1,3 @@
-use crate::runtime_config::network_translation_allowed;
 use crate::state::{cstr_to_string, store_json_allocation};
 use std::ffi::CString;
 use std::os::raw::c_char;
@@ -10,7 +9,6 @@ const CURL_BIN: &str = "curl";
 const CURL_ARGS_PREFIX: [&str; 4] = ["-s", "-m", "3", "-A"];
 const CURL_USER_AGENT: &str = "Mozilla/5.0";
 
-const ERROR_NETWORK_DISABLED: &str = "translate_network_disabled";
 const ERROR_EMPTY_TEXT: &str = "empty_text";
 const ERROR_REQUEST_FAILED: &str = "translate_request_failed";
 const ERROR_DECODE_FAILED: &str = "translate_decode_failed";
@@ -18,7 +16,6 @@ const ERROR_EXEC_FAILED: &str = "translate_exec_failed";
 const ERROR_PARSE_FAILED: &str = "translate_parse_failed";
 const ERROR_EMPTY_RESULT: &str = "translate_empty_result";
 
-const MESSAGE_NETWORK_DISABLED: &str = "Network translation is disabled. Enable in Advanced settings or set LOOK_TRANSLATE_ALLOW_NETWORK=true.";
 const MESSAGE_EMPTY_TEXT: &str = "Type text after t\" to translate";
 const MESSAGE_REQUEST_FAILED: &str = "Translation request failed";
 const MESSAGE_DECODE_FAILED: &str = "Translation response decode failed";
@@ -38,10 +35,6 @@ pub(crate) fn look_translate_json_impl(
 ) -> *mut c_char {
     let text = cstr_to_string(text);
     let target_lang = cstr_to_string(target_lang);
-
-    if !network_translation_allowed() {
-        return translate_error_json(&text, ERROR_NETWORK_DISABLED, MESSAGE_NETWORK_DISABLED);
-    }
 
     if text.trim().is_empty() {
         return translate_error_json(&text, ERROR_EMPTY_TEXT, MESSAGE_EMPTY_TEXT);

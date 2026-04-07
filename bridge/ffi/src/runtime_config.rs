@@ -5,7 +5,6 @@ use std::sync::{Mutex, OnceLock};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RuntimeConfig {
-    pub(crate) translate_allow_network: bool,
     pub(crate) log_level: LogLevel,
 }
 
@@ -27,10 +26,6 @@ pub(crate) fn reload_runtime_config() {
     } else {
         let _ = RUNTIME_CONFIG.set(Mutex::new(loaded));
     }
-}
-
-pub(crate) fn network_translation_allowed() -> bool {
-    with_runtime_config(|cfg| cfg.translate_allow_network)
 }
 
 pub(crate) fn log_debug(message: &str) {
@@ -81,14 +76,6 @@ fn load_runtime_config() -> RuntimeConfig {
         }
     }
 
-    let translate_allow_network = env_bool("LOOK_TRANSLATE_ALLOW_NETWORK")
-        .or_else(|| {
-            from_file
-                .get("translate_allow_network")
-                .and_then(|v| parse_bool(v))
-        })
-        .unwrap_or(false);
-
     let log_level = env::var("LOOK_LOG_LEVEL")
         .ok()
         .and_then(|v| parse_log_level(&v))
@@ -100,7 +87,6 @@ fn load_runtime_config() -> RuntimeConfig {
         .unwrap_or(LogLevel::Error);
 
     RuntimeConfig {
-        translate_allow_network,
         log_level,
     }
 }
