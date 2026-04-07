@@ -86,9 +86,7 @@ fn load_runtime_config() -> RuntimeConfig {
         })
         .unwrap_or(LogLevel::Error);
 
-    RuntimeConfig {
-        log_level,
-    }
+    RuntimeConfig { log_level }
 }
 
 fn default_config_path() -> PathBuf {
