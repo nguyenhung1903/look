@@ -53,62 +53,19 @@ struct LauncherView: View {
 
     private let commandCatalog: [AppCommand] = AppConstants.Launcher.commandCatalog
 
-    private enum PinnedLookupScope {
-        case unscoped
-        case apps
-        case files
-        case folders
-        case disabled
-    }
-
-    private var pinnedLookupScope: PinnedLookupScope {
-        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.regex)
-            || normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.clipboard)
-        {
-            return .disabled
-        }
-        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.apps) {
-            return .apps
-        }
-        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files) {
-            return .files
-        }
-        if normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders) {
-            return .folders
-        }
-        return .unscoped
+    private var pinnedLookupScope: LauncherPinnedLookupScope {
+        LauncherSearchLogic.pinnedLookupScope(for: query)
     }
 
     private var normalizedPinnedLookupQuery: String? {
-        var normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        if pinnedLookupScope == .apps, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.apps) {
-            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.apps.count))
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } else if pinnedLookupScope == .files, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.files) {
-            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.files.count))
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        } else if pinnedLookupScope == .folders, normalized.hasPrefix(AppConstants.Launcher.QueryPrefix.folders) {
-            normalized = String(normalized.dropFirst(AppConstants.Launcher.QueryPrefix.folders.count))
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        if pinnedLookupScope == .disabled {
-            return nil
-        }
-
-        guard !normalized.isEmpty else { return nil }
-        return normalized
+        LauncherSearchLogic.normalizedPinnedLookupQuery(for: query, scope: pinnedLookupScope)
     }
 
     private var shouldInjectFinderResult: Bool {
-        guard pinnedLookupScope == .unscoped || pinnedLookupScope == .apps else { return false }
-        guard let normalized = normalizedPinnedLookupQuery else { return false }
-        let finderName = AppConstants.Launcher.Finder.appName
-        return normalized.contains(finderName)
-            || (finderName.hasPrefix(normalized) && normalized.count >= AppConstants.Launcher.Finder.minPrefixMatchLength)
+        LauncherSearchLogic.shouldInjectFinder(
+            normalizedQuery: normalizedPinnedLookupQuery,
+            scope: pinnedLookupScope
+        )
     }
 
     private var quickFolderPinnedResults: [LauncherResult] {
@@ -171,29 +128,7 @@ struct LauncherView: View {
             }
         }
 
-        var seenTitles = Set<String>()
-        var unique: [LauncherResult] = []
-        for item in sourceResults {
-            let normalizedTitle = item.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let normalizedPath = item.path.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let key: String
-            switch item.kind {
-            case .app:
-                key = "\(item.kind.rawValue):\(normalizedTitle)"
-            case .file, .folder:
-                key = "\(item.kind.rawValue):\(normalizedPath)"
-            case .clipboard:
-                key = item.id
-            }
-            if key.isEmpty {
-                unique.append(item)
-                continue
-            }
-            if seenTitles.insert(key).inserted {
-                unique.append(item)
-            }
-        }
-        return unique
+        return LauncherSearchLogic.dedupe(results: sourceResults)
     }
 
     private var isClipboardQuery: Bool {
