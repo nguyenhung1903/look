@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 const SETTINGS_SUBTITLE_PREFIX: &str = "System Settings";
+const USE_COUNT_WEIGHT: u64 = 35;
 
 pub(crate) fn contains_match_score(
     query: &str,
@@ -125,7 +126,8 @@ pub(crate) fn default_browse_score(candidate: &Candidate, now_unix_s: i64) -> i6
         CandidateKind::File => 0,
     };
 
-    let frequency = (candidate.use_count as i64) * 35;
+    let frequency_u64 = candidate.use_count.saturating_mul(USE_COUNT_WEIGHT);
+    let frequency = frequency_u64.min(i64::MAX as u64) as i64;
     let recency = candidate
         .last_used_at_unix_s
         .map(|last| {

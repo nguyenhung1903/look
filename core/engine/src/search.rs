@@ -17,6 +17,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const RERANK_POOL_MULTIPLIER: usize = 4;
 const RERANK_TOP_N: usize = 80;
 const RERANK_MIN_QUERY_CHARS: usize = 3;
+const REGEX_SIZE_LIMIT_BYTES: usize = 1024 * 1024;
 
 fn strip_search_titles(
     mut ranked: Vec<(Candidate, i64, String)>,
@@ -66,6 +67,7 @@ impl QueryEngine {
         let Some(regex) = raw_query.and_then(|pattern| {
             RegexBuilder::new(pattern)
                 .case_insensitive(true)
+                .size_limit(REGEX_SIZE_LIMIT_BYTES)
                 .build()
                 .ok()
         }) else {
