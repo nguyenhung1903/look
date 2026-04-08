@@ -39,6 +39,7 @@ struct LauncherView: View {
     @State private var commandFeedback = ""
     @State private var keyboardMonitor = KeyboardSelectionMonitor()
     @State private var searchTask: Task<Void, Never>?
+    @State private var latestSearchID: UInt64 = 0
     @State private var bannerMessage: String?
     @State private var bannerStyle: BannerStyle = .info
     @State private var bannerCopyText: String?
@@ -662,16 +663,28 @@ struct LauncherView: View {
         selectedResultID = displayedResults.first?.id
     }
 
+    private func invalidateSearchRequests() {
+        latestSearchID &+= 1
+        searchTask?.cancel()
+        searchTask = nil
+    }
+
+    private func beginSearchRequest() -> UInt64 {
+        latestSearchID &+= 1
+        return latestSearchID
+    }
+
     private func refreshSearchResults() {
         guard !isCommandMode else { return }
         guard !isClipboardQuery else {
-            searchTask?.cancel()
+            invalidateSearchRequests()
             setInitialSelection()
             return
         }
 
         let currentQuery = query
         let searchLimit = AppConstants.Launcher.defaultSearchLimit
+        let searchID = beginSearchRequest()
         searchTask?.cancel()
         searchTask = Task {
             try? await Task.sleep(nanoseconds: AppConstants.Launcher.searchDebounceNanoseconds)
@@ -682,6 +695,7 @@ struct LauncherView: View {
             }.value
 
             await MainActor.run {
+                guard searchID == latestSearchID else { return }
                 guard !isCommandMode, query == currentQuery else { return }
                 backendResults = results
                 setInitialSelection()
@@ -1158,7 +1172,7 @@ struct LauncherView: View {
             refreshClipboardMonitoringMode()
         }
         .onDisappear {
-            searchTask?.cancel()
+            invalidateSearchRequests()
             bannerTask?.cancel()
             lookupPreviewTask?.cancel()
             keyboardMonitor.stop()

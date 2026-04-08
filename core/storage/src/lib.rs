@@ -82,7 +82,7 @@ impl SearchEngine {
     }
 
     pub fn build_search_url(self, query: &str) -> String {
-        let encoded = percent_encode_query(query);
+        let encoded = form_encode_query(query);
         match self {
             SearchEngine::DuckDuckGo => format!("https://duckduckgo.com/?q={encoded}"),
             SearchEngine::Google => format!("https://www.google.com/search?q={encoded}"),
@@ -365,7 +365,24 @@ impl SqliteStore {
     }
 }
 
-fn percent_encode_query(value: &str) -> String {
+/// RFC 3986 percent-encoding: unreserved characters are passed through,
+/// everything else (including spaces) is encoded as `%XX`.
+pub fn percent_encode(value: &str) -> String {
+    let mut out = String::new();
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            out.push(byte as char);
+        } else {
+            out.push('%');
+            out.push_str(&format!("{byte:02X}"));
+        }
+    }
+    out
+}
+
+/// Form-style encoding for search query parameters: same as [`percent_encode`]
+/// but encodes spaces as `+` instead of `%20`.
+fn form_encode_query(value: &str) -> String {
     let mut out = String::new();
     for byte in value.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
@@ -403,6 +420,38 @@ mod tests {
             use_count: 0,
             last_used_at_unix_s: None,
         }
+    }
+
+    #[test]
+    fn percent_encode_leaves_unreserved_chars_intact() {
+        assert_eq!(percent_encode("hello"), "hello");
+        assert_eq!(percent_encode("a-b_c.d~e"), "a-b_c.d~e");
+        assert_eq!(percent_encode("ABC123"), "ABC123");
+    }
+
+    #[test]
+    fn percent_encode_encodes_spaces_and_special_chars() {
+        assert_eq!(percent_encode("hello world"), "hello%20world");
+        assert_eq!(percent_encode("a&b=c"), "a%26b%3Dc");
+        assert_eq!(percent_encode("foo/bar"), "foo%2Fbar");
+    }
+
+    #[test]
+    fn percent_encode_handles_unicode() {
+        let encoded = percent_encode("café");
+        assert!(encoded.starts_with("caf%"));
+        assert!(!encoded.contains('é'));
+    }
+
+    #[test]
+    fn percent_encode_handles_empty_string() {
+        assert_eq!(percent_encode(""), "");
+    }
+
+    #[test]
+    fn form_encode_query_encodes_spaces_as_plus() {
+        assert_eq!(form_encode_query("hello world"), "hello+world");
+        assert_eq!(form_encode_query("a&b"), "a%26b");
     }
 
     #[test]

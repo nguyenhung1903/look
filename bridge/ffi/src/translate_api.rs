@@ -1,4 +1,5 @@
 use crate::state::{cstr_to_string, store_json_allocation};
+use look_storage::percent_encode;
 use std::ffi::CString;
 use std::os::raw::c_char;
 
@@ -40,7 +41,11 @@ pub(crate) fn look_translate_json_impl(
         return translate_error_json(&text, ERROR_EMPTY_TEXT, MESSAGE_EMPTY_TEXT);
     }
 
-    let encoded_text = urlencodingencode(&text);
+    if !is_valid_lang_code(&target_lang) {
+        return translate_error_json(&text, "invalid_target_lang", "Invalid target language code");
+    }
+
+    let encoded_text = percent_encode(&text);
     let mut url = String::with_capacity(
         TRANSLATE_URL_PREFIX.len()
             + TRANSLATE_URL_MIDDLE.len()
@@ -139,17 +144,12 @@ fn parse_translate_response(value: &serde_json::Value) -> String {
     result
 }
 
-fn urlencodingencode(s: &str) -> String {
-    let mut result = String::new();
-    for byte in s.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                result.push(byte as char);
-            }
-            _ => {
-                result.push_str(&format!("%{:02X}", byte));
-            }
-        }
+/// Validates that `code` looks like a BCP-47 language tag accepted by Google
+/// Translate (e.g. "en", "vi", "zh-CN", "pt-BR").
+fn is_valid_lang_code(code: &str) -> bool {
+    let code = code.trim();
+    if code.is_empty() || code.len() > 10 {
+        return false;
     }
-    result
+    code.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
 }

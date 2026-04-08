@@ -52,7 +52,7 @@ fn current_log_level() -> LogLevel {
 
 fn with_runtime_config<T>(f: impl FnOnce(&RuntimeConfig) -> T) -> T {
     let lock = runtime_config();
-    let guard = lock.lock().expect("runtime config lock poisoned");
+    let guard = lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     f(&guard)
 }
 

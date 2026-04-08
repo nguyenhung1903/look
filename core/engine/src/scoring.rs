@@ -143,6 +143,7 @@ pub(crate) struct ScoredMatch {
     candidate: Candidate,
     score: i64,
     sort_title: String,
+    search_title: String,
 }
 
 impl PartialEq for ScoredMatch {
@@ -156,10 +157,26 @@ impl Eq for ScoredMatch {}
 impl ScoredMatch {
     pub(crate) fn new(candidate: Candidate, score: i64) -> Self {
         let sort_title = candidate.title.to_lowercase();
+        let search_title = sort_title.clone();
         Self {
             candidate,
             score,
             sort_title,
+            search_title,
+        }
+    }
+
+    pub(crate) fn new_with_search_title(
+        candidate: Candidate,
+        score: i64,
+        search_title: String,
+    ) -> Self {
+        let sort_title = candidate.title.to_lowercase();
+        Self {
+            candidate,
+            score,
+            sort_title,
+            search_title,
         }
     }
 }
@@ -201,4 +218,162 @@ pub(crate) fn finalize_top_k(heap: BinaryHeap<ScoredMatch>) -> Vec<(Candidate, i
         .collect();
     out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.title.cmp(&b.0.title)));
     out
+}
+
+pub(crate) fn finalize_top_k_with_search(
+    heap: BinaryHeap<ScoredMatch>,
+) -> Vec<(Candidate, i64, String)> {
+    let mut out: Vec<(Candidate, i64, String)> = heap
+        .into_iter()
+        .map(|entry| (entry.candidate, entry.score, entry.search_title))
+        .collect();
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.title.cmp(&b.0.title)));
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app(title: &str, path: &str) -> Candidate {
+        Candidate::new(
+            &format!("app.{}", title.to_lowercase()),
+            CandidateKind::App,
+            title,
+            path,
+        )
+    }
+
+    fn file(title: &str, path: &str) -> Candidate {
+        Candidate::new(
+            &format!("file.{}", title.to_lowercase()),
+            CandidateKind::File,
+            title,
+            path,
+        )
+    }
+
+    fn folder(title: &str, path: &str) -> Candidate {
+        Candidate::new(
+            &format!("folder.{}", title.to_lowercase()),
+            CandidateKind::Folder,
+            title,
+            path,
+        )
+    }
+
+    #[test]
+    fn contains_match_title_scores_higher_than_subtitle() {
+        let title_score = contains_match_score("safari", "safari browser", None).unwrap();
+        let subtitle_score =
+            contains_match_score("safari", "other", Some("safari browser")).unwrap();
+        assert!(title_score > subtitle_score);
+    }
+
+    #[test]
+    fn contains_match_returns_none_when_no_match() {
+        assert!(contains_match_score("xyz", "safari", Some("browser")).is_none());
+    }
+
+    #[test]
+    fn contains_match_multi_token_all_present() {
+        let score = contains_match_score("visual code", "visual studio code", None);
+        assert!(score.is_some());
+    }
+
+    #[test]
+    fn contains_match_multi_token_partial_returns_none() {
+        assert!(contains_match_score("visual xyz", "visual studio code", None).is_none());
+    }
+
+    #[test]
+    fn path_match_requires_slash() {
+        assert!(path_match_score("safari", "/Applications/Safari.app").is_none());
+    }
+
+    #[test]
+    fn path_match_exact_substring() {
+        let score = path_match_score("git/books-pc", "/Users/test/git/books-pc/README.md");
+        assert!(score.is_some());
+        assert!(score.unwrap() > 1_000);
+    }
+
+    #[test]
+    fn path_match_multi_segment_fuzzy() {
+        let score = path_match_score("Users/Documents", "/Users/test/Documents/notes.txt");
+        assert!(score.is_some());
+    }
+
+    #[test]
+    fn path_match_single_segment_returns_none() {
+        assert!(path_match_score("test/", "/some/path").is_none());
+    }
+
+    #[test]
+    fn kind_bias_apps_higher_than_files() {
+        let a = app("Safari", "/Applications/Safari.app");
+        let f = file("notes.txt", "/Users/test/notes.txt");
+        assert!(kind_bias(&a) > kind_bias(&f));
+    }
+
+    #[test]
+    fn path_depth_penalty_apps_exempt() {
+        let a = app("Safari", "/Applications/Deeply/Nested/Safari.app");
+        assert_eq!(path_depth_penalty(&a), 0);
+    }
+
+    #[test]
+    fn path_depth_penalty_increases_with_depth() {
+        let shallow = file("a.txt", "/Users/a.txt");
+        let deep = file("b.txt", "/Users/test/Documents/nested/deep/b.txt");
+        assert!(path_depth_penalty(&shallow) > path_depth_penalty(&deep));
+    }
+
+    #[test]
+    fn default_browse_score_prefers_frequent_apps() {
+        let mut frequent = app("Safari", "/Applications/Safari.app");
+        frequent.use_count = 50;
+        frequent.last_used_at_unix_s = Some(1_700_000_000);
+
+        let unused = app("Chess", "/Applications/Chess.app");
+
+        let now = 1_700_000_100;
+        assert!(default_browse_score(&frequent, now) > default_browse_score(&unused, now));
+    }
+
+    #[test]
+    fn push_top_k_respects_limit() {
+        let mut heap = BinaryHeap::new();
+        for i in 0..10 {
+            let c = app(&format!("App{i}"), "/test");
+            push_top_k(&mut heap, ScoredMatch::new(c, i * 100), 3);
+        }
+        assert_eq!(heap.len(), 3);
+
+        let results = finalize_top_k(heap);
+        assert!(results[0].1 >= results[1].1);
+        assert!(results[1].1 >= results[2].1);
+    }
+
+    #[test]
+    fn query_kind_penalty_settings_hints() {
+        let settings_app = Candidate {
+            id: "app.settings".to_string(),
+            kind: CandidateKind::App,
+            title: "System Settings".to_string(),
+            subtitle: Some("System Settings".to_string()),
+            path: "/System/Applications/System Settings.app".to_string(),
+            use_count: 0,
+            last_used_at_unix_s: None,
+        };
+        let regular_app = app("Safari", "/Applications/Safari.app");
+        let folder = folder("network", "/Users/test/network");
+
+        let settings_score = query_kind_penalty("network", &settings_app);
+        let app_score = query_kind_penalty("network", &regular_app);
+        let folder_score = query_kind_penalty("network", &folder);
+
+        assert!(settings_score > app_score);
+        assert!(app_score > folder_score);
+    }
 }
