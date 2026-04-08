@@ -1,17 +1,19 @@
+use crate::QueryEngine;
 use crate::config::*;
 use crate::normalize::normalize_for_search;
 use crate::query::ParsedQuery;
 use crate::scoring::{
-    contains_match_score, default_browse_score, finalize_top_k, kind_bias, path_depth_penalty,
-    path_match_score, push_top_k, query_kind_penalty, ScoredMatch,
+    ScoredMatch, contains_match_score, default_browse_score, finalize_top_k, kind_bias,
+    path_depth_penalty, path_match_score, push_top_k, query_kind_penalty,
 };
-use crate::QueryEngine;
 use look_indexing::Candidate;
 use look_matching::fuzzy_score;
 use look_ranking::rank_score;
 use regex::RegexBuilder;
 use std::collections::BinaryHeap;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const REGEX_SIZE_LIMIT_BYTES: usize = 1024 * 1024;
 
 impl QueryEngine {
     pub fn search_scored(&self, query: &str, limit: usize) -> Vec<(Candidate, i64)> {
@@ -44,7 +46,7 @@ impl QueryEngine {
             let Some(regex) = parsed_query.raw_query.as_ref().and_then(|pattern| {
                 RegexBuilder::new(pattern)
                     .case_insensitive(true)
-                    .size_limit(1024 * 1024)
+                    .size_limit(REGEX_SIZE_LIMIT_BYTES)
                     .build()
                     .ok()
             }) else {
