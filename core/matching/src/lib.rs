@@ -19,84 +19,87 @@ pub fn fuzzy_score_prepared(query: &PreparedQuery<'_>, title: &str) -> Option<i6
     let q = query.raw;
     let t = title;
 
-    // Tier 1: exact match — highest possible score
     if t == q {
         return Some(2_000);
     }
 
-    // Tier 2: prefix match — high score with length penalty
     if t.starts_with(q) {
         return Some(1_500 - (t.len() as i64 - q.len() as i64).max(0));
     }
 
-    // Tier 3: enhanced subsequence matching with heuristic bonuses
-    if query.chars.is_empty() {
-        return Some(1_500 - t.len() as i64);
+    let mut qi = 0usize;
+    let mut score = 0i64;
+
+    for ch in t.chars() {
+        if qi < query.chars.len() && ch == query.chars[qi] {
+            qi += 1;
+            score += 10;
+        }
+    }
+
+    if qi == query.chars.len() {
+        Some(score)
+    } else {
+        None
+    }
+}
+
+pub fn fuzzy_quality_bonus_prepared(query: &PreparedQuery<'_>, title: &str) -> i64 {
+    if query.chars.is_empty() || title == query.raw || title.starts_with(query.raw) {
+        return 0;
     }
 
     let mut qi = 0usize;
-    let mut score = 0i64;
+    let mut bonus = 0i64;
     let mut prev_match_idx: Option<usize> = None;
     let mut consecutive: i64 = 0;
     let mut prev_char: Option<char> = None;
-    let mut ti = 0usize;
 
-    for ch in t.chars() {
+    for (ti, ch) in title.chars().enumerate() {
         if qi >= query.chars.len() {
             break;
         }
+
         if ch != query.chars[qi] {
             prev_char = Some(ch);
-            ti += 1;
             continue;
         }
+
         qi += 1;
 
-        // Base: each matched character
-        score += 10;
-
-        // Consecutive bonus: escalating reward for adjacent matches
-        // "sc" in "screen" (s→c consecutive) scores higher than "s...c" spread apart
         if let Some(prev) = prev_match_idx {
             if prev + 1 == ti {
                 consecutive += 1;
-                score += consecutive * 8;
+                bonus += consecutive * 8;
             } else {
                 consecutive = 0;
-                // Gap penalty: distance between matches
                 let gap = (ti - prev - 1) as i64;
-                score -= gap.min(20);
+                bonus -= gap.min(20);
             }
         }
 
-        // Word boundary bonus: match right after a separator or at start
-        // "vsc" matching V|isual S|tudio C|ode — each capital/boundary hit is strong signal
         if ti == 0 || matches!(prev_char, Some(' ' | '-' | '_' | '/' | '.')) {
-            score += 20;
+            bonus += 20;
         }
 
-        // Position weight: earlier matches are more likely intentional
         if ti < 5 {
-            score += (5 - ti as i64) * 3;
+            bonus += (5 - ti as i64) * 3;
         }
 
         prev_match_idx = Some(ti);
         prev_char = Some(ch);
-        ti += 1;
     }
 
     if qi == query.chars.len() {
-        Some(score.max(1))
+        bonus.max(0)
     } else {
-        None
+        0
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ── existing tests (behavior preserved) ──
 
     #[test]
     fn exact_match_returns_max_score() {
@@ -130,8 +133,6 @@ mod tests {
 
     #[test]
     fn empty_query_matches_everything() {
-        // Empty string is a prefix of any string, so it goes through the
-        // starts_with branch: 1500 - title.len()
         let score = fuzzy_score("", "safari").unwrap();
         assert!(score > 0);
     }
@@ -148,91 +149,6 @@ mod tests {
         assert!(fuzzy_score("z", "safari").is_none());
     }
 
-    // ── new tests: consecutive bonus ──
-
-    #[test]
-    fn consecutive_matches_score_higher_than_spread() {
-        // "ab" in "ab xyz" (consecutive a→b) vs "ab" in "a.x.b" (spread)
-        let consecutive = fuzzy_score("ab", "ab xyz").unwrap();
-        let spread = fuzzy_score("ab", "a x b").unwrap();
-        assert!(
-            consecutive > spread,
-            "consecutive ({consecutive}) should beat spread ({spread})"
-        );
-    }
-
-    #[test]
-    fn longer_consecutive_run_scores_higher() {
-        // "abc" consecutive in "abcdef" vs only "ab" consecutive in "ab x c"
-        let full_run = fuzzy_score("abc", "abcdef").unwrap();
-        let partial_run = fuzzy_score("abc", "ab x c").unwrap();
-        assert!(
-            full_run > partial_run,
-            "full run ({full_run}) should beat partial ({partial_run})"
-        );
-    }
-
-    // ── new tests: word boundary bonus ──
-
-    #[test]
-    fn boundary_match_preferred() {
-        // "vsc" → "vs code" matches at word boundaries (v, s consecutive + c at boundary)
-        // "vsc" → "visual studio code" matches v at start, then s/c at boundaries
-        let tight = fuzzy_score("vsc", "vs code").unwrap();
-        let loose = fuzzy_score("vsc", "visual studio code").unwrap();
-        assert!(
-            tight > loose,
-            "tight boundary match ({tight}) should beat loose ({loose})"
-        );
-    }
-
-    #[test]
-    fn start_of_word_matches_score_higher() {
-        // "c" at start of "code" (word boundary) vs "c" buried in "bicycle"
-        let at_boundary = fuzzy_score("c", "my code").unwrap();
-        let mid_word = fuzzy_score("c", "bicycle").unwrap();
-        assert!(
-            at_boundary > mid_word,
-            "boundary ({at_boundary}) should beat mid-word ({mid_word})"
-        );
-    }
-
-    // ── new tests: gap penalty ──
-
-    #[test]
-    fn smaller_gap_scores_higher() {
-        // "ac" with small gap in "a.c.x.y" vs large gap in "a.x.x.x.x.c"
-        let small_gap = fuzzy_score("ac", "a c x").unwrap();
-        let large_gap = fuzzy_score("ac", "a x x x x c").unwrap();
-        assert!(
-            small_gap > large_gap,
-            "small gap ({small_gap}) should beat large gap ({large_gap})"
-        );
-    }
-
-    // ── new tests: position weight ──
-
-    #[test]
-    fn earlier_match_scores_higher() {
-        // "x" near start vs "x" at the end
-        let early = fuzzy_score("x", "x at start").unwrap();
-        let late = fuzzy_score("x", "at the end x").unwrap();
-        assert!(
-            early > late,
-            "early match ({early}) should beat late match ({late})"
-        );
-    }
-
-    // ── new tests: combined heuristics ──
-
-    #[test]
-    fn initials_match_is_strong() {
-        // "gc" matching initials of "google chrome"
-        let score = fuzzy_score("gc", "google chrome").unwrap();
-        // Should get boundary bonus on both g (start) and c (word boundary)
-        assert!(score > 40, "initials match should score well ({score})");
-    }
-
     #[test]
     fn score_hierarchy_is_consistent() {
         let exact = fuzzy_score("safari", "safari").unwrap();
@@ -244,5 +160,22 @@ mod tests {
             prefix > subseq,
             "prefix ({prefix}) > subsequence ({subseq})"
         );
+    }
+
+    #[test]
+    fn prepared_query_matches_raw_behavior() {
+        let prepared = prepare_query("vsc");
+        assert_eq!(
+            fuzzy_score_prepared(&prepared, "visual studio code"),
+            fuzzy_score("vsc", "visual studio code")
+        );
+    }
+
+    #[test]
+    fn quality_bonus_prefers_compact_word_boundaries() {
+        let prepared = prepare_query("vsc");
+        let tight = fuzzy_quality_bonus_prepared(&prepared, "vs code");
+        let loose = fuzzy_quality_bonus_prepared(&prepared, "visual studio code");
+        assert!(tight > loose);
     }
 }

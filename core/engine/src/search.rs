@@ -7,11 +7,14 @@ use crate::scoring::{
     path_depth_penalty, path_match_score, push_top_k, query_kind_penalty,
 };
 use look_indexing::Candidate;
-use look_matching::{fuzzy_score_prepared, prepare_query};
+use look_matching::{fuzzy_quality_bonus_prepared, fuzzy_score_prepared, prepare_query};
 use look_ranking::rank_score;
 use regex::RegexBuilder;
 use std::collections::BinaryHeap;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const RERANK_POOL_MULTIPLIER: usize = 4;
+const RERANK_TOP_N: usize = 80;
 
 impl QueryEngine {
     pub fn search_scored(&self, query: &str, limit: usize) -> Vec<(Candidate, i64)> {
@@ -92,6 +95,7 @@ impl QueryEngine {
         let prepared_query = prepare_query(&normalized_query);
         let mut top = BinaryHeap::new();
         let has_path_hint = normalized_query.contains('/');
+        let pool_limit = (limit.saturating_mul(RERANK_POOL_MULTIPLIER)).max(RERANK_TOP_N);
 
         for candidate in self.candidates.iter().filter(|candidate| {
             parsed_query
@@ -135,10 +139,23 @@ impl QueryEngine {
             push_top_k(
                 &mut top,
                 ScoredMatch::new(candidate.clone(), final_score),
-                limit,
+                pool_limit,
             );
         }
 
-        finalize_top_k(top)
+        let mut ranked = finalize_top_k(top);
+
+        // Two-stage retrieval:
+        // 1) fast scorer over full candidate set
+        // 2) quality rerank only on top-N candidates to keep latency predictable
+        let rerank_count = ranked.len().min(RERANK_TOP_N);
+        for entry in ranked.iter_mut().take(rerank_count) {
+            let title_search = normalize_for_search(&entry.0.title);
+            entry.1 += fuzzy_quality_bonus_prepared(&prepared_query, &title_search);
+        }
+
+        ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.title.cmp(&b.0.title)));
+        ranked.truncate(limit);
+        ranked
     }
 }
