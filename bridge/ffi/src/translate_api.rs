@@ -7,8 +7,17 @@ const TRANSLATE_URL_PREFIX: &str =
     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=";
 const TRANSLATE_URL_MIDDLE: &str = "&dt=t&q=";
 const CURL_BIN: &str = "curl";
-const CURL_ARGS_PREFIX: [&str; 4] = ["-s", "-m", "3", "-A"];
-const CURL_USER_AGENT: &str = "Mozilla/5.0";
+const CURL_ARGS_PREFIX: [&str; 8] = [
+    "-s",
+    "-m",
+    "3",
+    "-A",
+    "--tlsv1.2",
+    "-H",
+    "Accept-Language: en-US,en;q=0.9",
+    "--compressed",
+];
+const CURL_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const ERROR_EMPTY_TEXT: &str = "empty_text";
 const ERROR_REQUEST_FAILED: &str = "translate_request_failed";

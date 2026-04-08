@@ -4,6 +4,27 @@ use look_storage::SqliteStore;
 use std::os::raw::c_char;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const VALID_CANDIDATE_PREFIXES: [&str; 3] = ["app:", "file:", "folder:"];
+const VALID_ACTIONS: [&str; 7] = [
+    "open",
+    "open_app",
+    "open_file",
+    "open_folder",
+    "open_url",
+    "execute",
+    "web_search",
+];
+
+fn is_valid_candidate_id(id: &str) -> bool {
+    VALID_CANDIDATE_PREFIXES
+        .iter()
+        .any(|prefix| id.starts_with(prefix))
+}
+
+fn is_valid_action(action: &str) -> bool {
+    VALID_ACTIONS.contains(&action)
+}
+
 pub(crate) fn look_record_usage_impl(candidate_id: *const c_char, action: *const c_char) -> bool {
     let candidate_id = cstr_to_string(candidate_id);
     let action = cstr_to_string(action);
@@ -12,13 +33,22 @@ pub(crate) fn look_record_usage_impl(candidate_id: *const c_char, action: *const
         return false;
     }
 
+    let trimmed_id = candidate_id.trim();
+    let trimmed_action = action.trim();
+
+    if !is_valid_candidate_id(trimmed_id) || !is_valid_action(trimmed_action) {
+        log_error(&format!(
+            "invalid usage record attempt: id={}, action={}",
+            trimmed_id, trimmed_action
+        ));
+        return false;
+    }
+
     let Ok(store) = SqliteStore::open(default_db_path()) else {
         return false;
     };
 
-    let ok = store
-        .record_usage_event(candidate_id.trim(), action.trim())
-        .is_ok();
+    let ok = store.record_usage_event(trimmed_id, trimmed_action).is_ok();
 
     if ok {
         let used_at_unix_s = SystemTime::now()
@@ -26,7 +56,7 @@ pub(crate) fn look_record_usage_impl(candidate_id: *const c_char, action: *const
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
         with_engine_mut(|engine| {
-            let _ = engine.record_usage_in_memory(candidate_id.trim(), used_at_unix_s);
+            let _ = engine.record_usage_in_memory(trimmed_id, used_at_unix_s);
         });
     }
 
