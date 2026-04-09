@@ -143,19 +143,8 @@ struct ResultsListView: View {
 }
 
 struct HintBar: View {
-    let isCommandMode: Bool
-    let activeCommandID: String?
+    let hint: String
     let themeStore: ThemeStore
-
-    var hint: String {
-        if isCommandMode && activeCommandID == AppConstants.Launcher.Command.kill {
-            return AppConstants.Launcher.killHint
-        }
-        if isCommandMode && activeCommandID == AppConstants.Launcher.Command.sys {
-            return AppConstants.Launcher.sysHint
-        }
-        return isCommandMode ? AppConstants.Launcher.commandHint : AppConstants.Launcher.normalHint
-    }
 
     var body: some View {
         Text(hint)
@@ -264,8 +253,8 @@ private enum LauncherHelpContent {
         ("d\"word", "Folders only"),
         ("r\"pattern", "Regex search"),
         ("c\"word", "Clipboard history search (latest 10 text clips)"),
-        ("t\"word", "Translate text"),
-        ("tw\"word", "Translate EN↔VI/EN↔JA"),
+        ("t\"word", "Web translate (VI/EN/JA)"),
+        ("tw\"word", "Lookup panel with definitions"),
     ]
 
     static let commandMode: [(String, String)] = [

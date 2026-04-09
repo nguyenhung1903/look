@@ -160,8 +160,8 @@ Path-style query is supported directly in normal search:
 
 Quick prefix action in the same input:
 
-- type `t"word or phrase` and press `Enter`: translate text via network API and show result banner in app
-- type `tw"word or phrase` and press `Enter`: translate to 3 languages simultaneously (English, Tiếng Việt, 日本語) and show all results under the search bar with word definitions and examples
+- type `t"word or phrase` then press `Enter`: web translate and show 3 results (Tiếng Việt, English, 日本語) under the search bar
+- type `tw"word or phrase`: open dictionary lookup panel (updates live while typing) with translations + definitions/examples
 - type `a"term`: search apps only
 - type `f"term`: search files only
 - type `d"term`: search folders only
@@ -187,11 +187,11 @@ Translation privacy control:
 - translation network access is disabled by default
 - `translate_allow_network` controls whether translation requests are allowed
 - optional env override: `LOOK_TRANSLATE_ALLOW_NETWORK=true`
-- when disabled, `t"...` returns a local warning and does not send text to network (`tw"...` requires network for translation; if disabled, no translation results are returned)
+- when disabled, both `t"...` and `tw"...` return a local warning and do not send text to network
 
-#### Translation (`tw"`) — Supported languages
+#### Translation (`t"`, `tw"`) — Supported languages
 
-`tw"word` translates your input to all 3 supported languages at once and enriches each result with dictionary definitions from your installed Apple dictionaries (Oxford, Lạc Việt, etc.):
+Both `t"word` and `tw"word` translate your input to all 3 supported languages:
 
 | Language | Label | Translation target |
 |---|---|---|
@@ -199,8 +199,10 @@ Translation privacy control:
 | Vietnamese | VI | input → Tiếng Việt |
 | Japanese | JA | input → 日本語 |
 
-Each section shows:
+For `t"` (web translation panel), each section shows:
 - translated text
+
+For `tw"` (lookup panel), each section can additionally include:
 - word type (noun, verb, adjective...)
 - pronunciation (if available in dictionary)
 - numbered definitions and examples
@@ -418,7 +420,7 @@ ui_border_opacity=0.12
 
 - `Tab`: next result / next command
 - `Shift+Tab`: previous result / previous command
-- `Enter`: open selected result, run command, translate (if `t"...`) or translate EN↔VI↔JA (if `tw"...`), or confirm kill
+- `Enter`: open selected result, run command, run web translation (if `t"...`), refresh lookup translation (if `tw"...`), or confirm kill
 - `a"`: apps-only search prefix
 - `f"`: files-only search prefix
 - `d"`: folders-only search prefix

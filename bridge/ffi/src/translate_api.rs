@@ -7,8 +7,18 @@ const TRANSLATE_URL_PREFIX: &str =
     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=";
 const TRANSLATE_URL_MIDDLE: &str = "&dt=t&q=";
 const CURL_BIN: &str = "curl";
-const CURL_ARGS_PREFIX: [&str; 4] = ["-s", "-m", "3", "-A"];
-const CURL_USER_AGENT: &str = "Mozilla/5.0";
+const CURL_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const CURL_ARGS_PREFIX: [&str; 9] = [
+    "-s",
+    "-m",
+    "3",
+    "--user-agent",
+    CURL_USER_AGENT,
+    "--tlsv1.2",
+    "-H",
+    "Accept-Language: en-US,en;q=0.9",
+    "--compressed",
+];
 
 const ERROR_EMPTY_TEXT: &str = "empty_text";
 const ERROR_REQUEST_FAILED: &str = "translate_request_failed";
@@ -59,7 +69,6 @@ pub(crate) fn look_translate_json_impl(
 
     let output = std::process::Command::new(CURL_BIN)
         .args(CURL_ARGS_PREFIX)
-        .arg(CURL_USER_AGENT)
         .arg(&url)
         .output();
 

@@ -179,12 +179,79 @@ struct LauncherView: View {
         isClipboardQuery ? clipboardResults : backendFilteredResults
     }
 
-    private var isLookupQuery: Bool {
+    private var isTranslationQuery: Bool {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if case .lookup = extractTranslationQuery(from: trimmed) {
+        return extractTranslationQuery(from: trimmed) != nil
+    }
+
+    private var translationEmptyHint: String? {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let command = extractTranslationQuery(from: trimmed) else {
+            return nil
+        }
+
+        switch command {
+        case .network:
+            return "Press Enter after finishing input to translate on web"
+        case .lookup:
+            return nil
+        }
+    }
+
+    private var isWebTranslationQuery: Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let command = extractTranslationQuery(from: trimmed) else {
+            return false
+        }
+
+        if case .network = command {
             return true
         }
         return false
+    }
+
+    private var currentHint: String {
+        hintItems.joined(separator: "  •  ")
+    }
+
+    private var hintItems: [String] {
+        if appUIState.showsThemeSettings {
+            return [
+                "Cmd+H help",
+                "Cmd+/ command mode",
+                "Cmd+Shift+, close settings",
+                "Cmd+Shift+; apply config",
+            ]
+        }
+
+        if isCommandMode {
+            if activeCommandID == AppConstants.Launcher.Command.kill {
+                return ["Y confirm", "N cancel", "Cmd+H help", "Cmd+/ command mode"]
+            }
+            if activeCommandID == AppConstants.Launcher.Command.sys {
+                return ["Esc back", "Cmd+Esc command list", "Cmd+H help", "Cmd+/ command mode"]
+            }
+            return ["Enter run", "Tab select", "Cmd+H help", "Cmd+/ command mode"]
+        }
+
+        if let command = extractTranslationQuery(from: query.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            switch command {
+            case .network:
+                return ["Enter translate web", "Copy per result", "Cmd+H help", "Cmd+/ command mode"]
+            case .lookup:
+                return ["Live lookup", "Type to refine", "Cmd+H help", "Cmd+/ command mode"]
+            }
+        }
+
+        if showsHelpScreen {
+            return ["Cmd+H close help", "Esc hide launcher", "Cmd+/ command mode", "Enter open"]
+        }
+
+        if isClipboardQuery {
+            return ["Enter copy clip", "Delete remove clip", "Cmd+H help", "Cmd+/ command mode"]
+        }
+
+        return ["Enter open", "Cmd+F reveal", "Cmd+H help", "Cmd+/ command mode"]
     }
 
     private var commandNamePart: String {
@@ -950,19 +1017,104 @@ struct LauncherView: View {
     }
 
     private func handleNetworkTranslation(text: String) {
-        let result = bridge.translate(text: text)
-        if let translated = result?.translated, !translated.isEmpty {
-            showBanner(
-                "\(text) -> \(translated)",
-                style: .success,
-                copyText: translated,
-                duration: 4.5
-            )
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            showBanner("Type text after t\" to translate", style: .error, duration: 3.2)
             return
         }
 
-        let message = result?.error?.message ?? "Translation failed"
-        showBanner(message, style: .error, duration: 3.2)
+        lookupDefinition = LookupDefinition(
+            query: normalized,
+            sourceLabel: "Web",
+            sections: [
+                LookupTranslationSection(label: "Tiếng Việt", translated: nil, dictionaryDefinition: nil, failed: false),
+                LookupTranslationSection(label: "English", translated: nil, dictionaryDefinition: nil, failed: false),
+                LookupTranslationSection(label: "日本語", translated: nil, dictionaryDefinition: nil, failed: false),
+            ]
+        )
+
+        Task {
+            let results = await fetchNetworkTranslations(for: normalized)
+            await MainActor.run {
+                let hasAnyResult = results.en.translated != nil
+                    || results.vi.translated != nil
+                    || results.ja.translated != nil
+
+                lookupDefinition = LookupDefinition(
+                    query: normalized,
+                    sourceLabel: "Web",
+                    sections: [
+                        LookupTranslationSection(label: "Tiếng Việt", translated: results.vi.translated, dictionaryDefinition: nil, failed: results.vi.translated == nil),
+                        LookupTranslationSection(label: "English", translated: results.en.translated, dictionaryDefinition: nil, failed: results.en.translated == nil),
+                        LookupTranslationSection(label: "日本語", translated: results.ja.translated, dictionaryDefinition: nil, failed: results.ja.translated == nil),
+                    ]
+                )
+
+                if !hasAnyResult {
+                    let message = results.en.errorMessage
+                        ?? results.vi.errorMessage
+                        ?? results.ja.errorMessage
+                        ?? "Translation failed"
+                    showBanner(message, style: .error, duration: 3.2)
+                }
+            }
+        }
+    }
+
+    private struct NetworkTranslationResult {
+        let translated: String?
+        let errorMessage: String?
+    }
+
+    private func fetchNetworkTranslations(for text: String) async -> (en: NetworkTranslationResult, vi: NetworkTranslationResult, ja: NetworkTranslationResult) {
+        await withTaskGroup(of: (String, NetworkTranslationResult).self) { group in
+            group.addTask {
+                let result = self.bridge.translate(text: text, targetLang: "en")
+                let translated = result?.translated.trimmingCharacters(in: .whitespacesAndNewlines)
+                return (
+                    "en",
+                    NetworkTranslationResult(
+                        translated: (translated?.isEmpty == false) ? translated : nil,
+                        errorMessage: result?.error?.message
+                    )
+                )
+            }
+            group.addTask {
+                let result = self.bridge.translate(text: text, targetLang: "vi")
+                let translated = result?.translated.trimmingCharacters(in: .whitespacesAndNewlines)
+                return (
+                    "vi",
+                    NetworkTranslationResult(
+                        translated: (translated?.isEmpty == false) ? translated : nil,
+                        errorMessage: result?.error?.message
+                    )
+                )
+            }
+            group.addTask {
+                let result = self.bridge.translate(text: text, targetLang: "ja")
+                let translated = result?.translated.trimmingCharacters(in: .whitespacesAndNewlines)
+                return (
+                    "ja",
+                    NetworkTranslationResult(
+                        translated: (translated?.isEmpty == false) ? translated : nil,
+                        errorMessage: result?.error?.message
+                    )
+                )
+            }
+
+            var en = NetworkTranslationResult(translated: nil, errorMessage: nil)
+            var vi = NetworkTranslationResult(translated: nil, errorMessage: nil)
+            var ja = NetworkTranslationResult(translated: nil, errorMessage: nil)
+            for await (lang, result) in group {
+                switch lang {
+                case "en": en = result
+                case "vi": vi = result
+                case "ja": ja = result
+                default: break
+                }
+            }
+            return (en, vi, ja)
+        }
     }
 
     private func showBanner(
@@ -1081,8 +1233,13 @@ struct LauncherView: View {
                                 themeStore: themeStore
                             )
                         }
-                    } else if isLookupQuery {
-                        LookupDefinitionPanelView(definition: lookupDefinition, themeStore: themeStore)
+                    } else if isTranslationQuery {
+                        LookupDefinitionPanelView(
+                            definition: lookupDefinition,
+                            emptyHint: translationEmptyHint,
+                            isWebMode: isWebTranslationQuery,
+                            themeStore: themeStore
+                        )
                     } else {
                         if showsHelpScreen {
                             LauncherHelpScreenView(themeStore: themeStore)
@@ -1120,7 +1277,7 @@ struct LauncherView: View {
                         Spacer(minLength: 0)
                     }
 
-                    HintBar(isCommandMode: isCommandMode, activeCommandID: activeCommandID, themeStore: themeStore)
+                    HintBar(hint: currentHint, themeStore: themeStore)
                 }
             }
             .padding(14)

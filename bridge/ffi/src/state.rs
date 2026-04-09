@@ -53,9 +53,15 @@ pub(crate) fn refresh_engine_cache() {
 
 pub(crate) fn store_json_allocation(cstring: CString) -> *mut c_char {
     let ptr = cstring.as_ptr() as usize;
+
     let lock = JSON_ALLOCS.get_or_init(|| Mutex::new(HashMap::new()));
     let mut allocations = lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    if allocations.contains_key(&ptr) {
+        allocations.remove(&ptr);
+    }
     allocations.insert(ptr, cstring);
+
     ptr as *mut c_char
 }
 

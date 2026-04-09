@@ -3,13 +3,13 @@ mod apps;
 mod files;
 mod settings;
 
-use look_indexing::Candidate;
+use look_indexing::{Candidate, CandidateIdKind};
 use std::collections::HashSet;
 
-pub(super) const APP_CANDIDATE_ID_PREFIX: &str = "app:";
-pub(super) const FILE_CANDIDATE_ID_PREFIX: &str = "file:";
-pub(super) const FOLDER_CANDIDATE_ID_PREFIX: &str = "folder:";
-pub(super) const SETTINGS_CANDIDATE_ID_PREFIX: &str = "setting:";
+pub(super) const APP_CANDIDATE_ID_PREFIX: &str = CandidateIdKind::PREFIX_APP;
+pub(super) const FILE_CANDIDATE_ID_PREFIX: &str = CandidateIdKind::PREFIX_FILE;
+pub(super) const FOLDER_CANDIDATE_ID_PREFIX: &str = CandidateIdKind::PREFIX_FOLDER;
+pub(super) const SETTINGS_CANDIDATE_ID_PREFIX: &str = CandidateIdKind::PREFIX_SETTING;
 
 pub fn discover_candidates(config: &RuntimeConfig) -> Vec<Candidate> {
     let mut out = Vec::new();

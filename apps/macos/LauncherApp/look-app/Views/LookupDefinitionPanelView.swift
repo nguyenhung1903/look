@@ -5,6 +5,8 @@ import SwiftUI
 
 struct LookupDefinitionPanelView: View {
     let definition: LookupDefinition?
+    let emptyHint: String?
+    let isWebMode: Bool
     @ObservedObject var themeStore: ThemeStore
     @State private var speechSynthesizer = AVSpeechSynthesizer()
 
@@ -22,7 +24,7 @@ struct LookupDefinitionPanelView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            dictionaryInstallHint
+            footerAction
         }
         .padding(.horizontal, 12)
         .padding(.top, 12)
@@ -36,8 +38,19 @@ struct LookupDefinitionPanelView: View {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(definition.query)
-                        .font(.system(size: CGFloat(themeStore.settings.fontSize + 6), weight: .semibold, design: .serif))
+                        .font(
+                            isWebMode
+                                ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 6), weight: Font.Weight.semibold)
+                                : .system(size: CGFloat(themeStore.settings.fontSize + 6), weight: Font.Weight.semibold, design: .serif)
+                        )
                         .foregroundStyle(themeStore.fontColor())
+                    Text(definition.sourceLabel.uppercased())
+                        .font(
+                            isWebMode
+                                ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: Font.Weight.semibold)
+                                : .system(size: CGFloat(themeStore.settings.fontSize - 2), weight: Font.Weight.bold, design: .rounded)
+                        )
+                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.45))
                 }
 
                 Spacer(minLength: 0)
@@ -66,7 +79,11 @@ struct LookupDefinitionPanelView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Text(section.label.uppercased())
-                    .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), weight: .bold, design: .serif))
+                    .font(
+                        isWebMode
+                            ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: Font.Weight.semibold)
+                            : .system(size: CGFloat(themeStore.settings.fontSize - 1), weight: Font.Weight.bold, design: .serif)
+                    )
                     .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
 
                 Spacer(minLength: 0)
@@ -80,15 +97,38 @@ struct LookupDefinitionPanelView: View {
                             .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.5))
                     }
                     .buttonStyle(.plain)
+
+                    if isWebMode {
+                        Button {
+                            copyToPasteboard(translated)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
+                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.5))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
 
             if let translated = section.translated, !translated.isEmpty {
                 Text(translated)
-                    .font(.system(size: CGFloat(themeStore.settings.fontSize + 2), weight: .regular, design: .serif))
+                    .font(
+                        isWebMode
+                            ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.regular)
+                            : .system(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.regular, design: .serif)
+                    )
                     .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.92))
                     .lineSpacing(CGFloat(themeStore.settings.fontSize * 0.15))
                     .textSelection(.enabled)
+            } else if section.failed {
+                Text("No translation")
+                    .font(
+                        isWebMode
+                            ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: Font.Weight.regular)
+                            : .system(size: CGFloat(themeStore.settings.fontSize), weight: Font.Weight.regular, design: .serif)
+                    )
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
             }
 
             if let presentation = section.dictionaryDefinition {
@@ -180,12 +220,52 @@ struct LookupDefinitionPanelView: View {
                 .font(.system(size: 28))
                 .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.35))
 
-            Text("Type tw\" to translate")
-                .font(.system(size: CGFloat(themeStore.settings.fontSize + 2), weight: .medium, design: .serif))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
+            if let emptyHint, !emptyHint.isEmpty {
+                Text(emptyHint)
+                    .font(
+                        isWebMode
+                            ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.medium)
+                            : .system(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.medium, design: .serif)
+                    )
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
+    }
+
+    @ViewBuilder
+    private var footerAction: some View {
+        if isWebMode {
+            openInBrowserButton
+        } else {
+            dictionaryInstallHint
+        }
+    }
+
+    private var openInBrowserButton: some View {
+        Button {
+            openInBrowserTranslation()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "safari")
+                    .font(.system(size: 14))
+
+                Text("Open in Browser")
+                    .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), weight: .medium))
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "arrow.up.forward")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(Color.accentColor)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(Color.accentColor.opacity(0.1))
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 
     private var dictionaryInstallHint: some View {
@@ -215,6 +295,29 @@ struct LookupDefinitionPanelView: View {
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
+    }
+
+    private func openInBrowserTranslation() {
+        let query = definition?.query.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) ?? ""
+        var components = URLComponents(string: "https://translate.google.com/")
+        if !query.isEmpty {
+            components?.queryItems = [
+                URLQueryItem(name: "sl", value: "auto"),
+                URLQueryItem(name: "tl", value: "en"),
+                URLQueryItem(name: "text", value: query),
+                URLQueryItem(name: "op", value: "translate"),
+            ]
+        }
+
+        guard let url = components?.url else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(trimmed, forType: .string)
     }
 
     private func speakText(_ text: String) {

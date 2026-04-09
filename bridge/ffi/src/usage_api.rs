@@ -1,5 +1,6 @@
 use crate::runtime_config::{log_debug, log_error};
 use crate::state::{cstr_to_string, default_db_path, with_engine_mut};
+use look_indexing::{CandidateIdKind, UsageAction};
 use look_storage::SqliteStore;
 use std::os::raw::c_char;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -12,13 +13,24 @@ pub(crate) fn look_record_usage_impl(candidate_id: *const c_char, action: *const
         return false;
     }
 
+    let trimmed_id = candidate_id.trim();
+    let trimmed_action = action.trim();
+
+    if CandidateIdKind::from_candidate_id(trimmed_id).is_none()
+        || trimmed_action.parse::<UsageAction>().is_err()
+    {
+        log_error(&format!(
+            "invalid usage record attempt: id={}, action={}",
+            trimmed_id, trimmed_action
+        ));
+        return false;
+    }
+
     let Ok(store) = SqliteStore::open(default_db_path()) else {
         return false;
     };
 
-    let ok = store
-        .record_usage_event(candidate_id.trim(), action.trim())
-        .is_ok();
+    let ok = store.record_usage_event(trimmed_id, trimmed_action).is_ok();
 
     if ok {
         let used_at_unix_s = SystemTime::now()
@@ -26,7 +38,7 @@ pub(crate) fn look_record_usage_impl(candidate_id: *const c_char, action: *const
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
         with_engine_mut(|engine| {
-            let _ = engine.record_usage_in_memory(candidate_id.trim(), used_at_unix_s);
+            let _ = engine.record_usage_in_memory(trimmed_id, used_at_unix_s);
         });
     }
 

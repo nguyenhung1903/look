@@ -1,13 +1,14 @@
+use look_indexing::UsageAction;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-const ACTION_OPEN_APP: &str = "open_app";
-const ACTION_OPEN_FILE: &str = "open_file";
-const ACTION_OPEN_FOLDER: &str = "open_folder";
-const ACTION_OPEN_URL: &str = "open_url";
+const ACTION_OPEN_APP: &str = UsageAction::OPEN_APP;
+const ACTION_OPEN_FILE: &str = UsageAction::OPEN_FILE;
+const ACTION_OPEN_FOLDER: &str = UsageAction::OPEN_FOLDER;
+const ACTION_OPEN_URL: &str = UsageAction::OPEN_URL;
 const ACTION_REVEAL: &str = "reveal";
-const ACTION_EXECUTE: &str = "execute";
-const ACTION_WEB_SEARCH: &str = "web_search";
+const ACTION_EXECUTE: &str = UsageAction::EXECUTE;
+const ACTION_WEB_SEARCH: &str = UsageAction::WEB_SEARCH;
 const ACTION_TRANSLATE: &str = "translate";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

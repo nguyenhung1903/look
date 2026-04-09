@@ -15,7 +15,8 @@ Default behavior:
 
 - launch top result with `Enter`
 - clipboard history query with `c"<word>`
-- translate text with `t"word` (network) or translate to 3 languages (EN/VI/JA) with `tw"word` + `Enter`
+- translate text with `t"word` (network, 3 results: VI/EN/JA)
+- open dictionary lookup panel with `tw"word` (live as you type; `Enter` still works)
 - web search handoff with `Cmd+Enter` (Google)
 - reveal selected app/file/folder in Finder with `Cmd+F`
 - command mode with `Cmd+/` (`calc`, `shell`, `kill`, `sys`)
@@ -106,7 +107,7 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - `Cmd+Esc`: back to command list (`calc`) while staying in command mode
 - `Cmd+Q`: hide launcher (Spotlight-style safety)
 - `Cmd+Option+Q`: quit app
-- `Enter`: launch selected app, execute active command, translate (if `t"...`) or translate EN↔VI↔JA (if `tw"...`), or confirm kill
+- `Enter`: launch selected app, execute active command, run web translation (if `t"...`), refresh lookup translation (if `tw"...`), or confirm kill
 - `Y` / `N`: confirm/cancel in kill command confirmation
 - `Cmd+Enter`: web search current query using Google
 - `Cmd+C`: copy selected file/folder to pasteboard
@@ -246,7 +247,8 @@ In scope for first milestone:
 - query file/folder name index and open/reveal
 - query clipboard history (`c"`) and copy selected history item back to clipboard
 - web search handoff with Google
-- translate text with `t"...` (network) or translate to EN/VI/JA with `tw"...`
+- translate text with `t"...` (network, returns VI/EN/JA)
+- dictionary lookup panel with `tw"...` (definitions/examples from installed dictionaries)
 - command mode with `calc`, `shell`, `kill`, and `sys`
 - optional translation exists behind network opt-in (`translate_allow_network=true`)
 - predictable, local-first behavior
