@@ -12,17 +12,29 @@ use config::RuntimeConfig;
 use index::discover_candidates;
 use look_indexing::{Candidate, CandidateKind};
 use look_storage::{SearchSettings, SqliteStore, StorageError};
+use normalize::normalize_for_search;
 pub use result::{LaunchResult, LaunchResultAction};
 use std::collections::HashSet;
 use std::path::Path;
 
+struct IndexedCandidate {
+    candidate: Candidate,
+    // Search-normalized fields are precomputed once at load time so the query loop
+    // does not allocate per candidate/per keystroke.
+    title_search: String,
+    subtitle_search: Option<String>,
+    path_search: String,
+}
+
 #[derive(Default)]
 pub struct QueryEngine {
-    candidates: Vec<Candidate>,
+    candidates: Vec<IndexedCandidate>,
 }
 
 impl QueryEngine {
     pub fn new(candidates: Vec<Candidate>) -> Self {
+        // Build an in-memory search index up front (hot path reads only).
+        let candidates = candidates.into_iter().map(IndexedCandidate::new).collect();
         Self { candidates }
     }
 
@@ -35,18 +47,20 @@ impl QueryEngine {
     }
 
     pub fn record_usage_in_memory(&mut self, candidate_id: &str, used_at_unix_s: i64) -> bool {
-        if let Some(candidate) = self.candidates.iter_mut().find(|c| c.id == candidate_id) {
-            candidate.use_count = candidate.use_count.saturating_add(1);
-            candidate.last_used_at_unix_s = Some(used_at_unix_s);
+        if let Some(indexed) = self
+            .candidates
+            .iter_mut()
+            .find(|c| c.candidate.id == candidate_id)
+        {
+            indexed.candidate.use_count = indexed.candidate.use_count.saturating_add(1);
+            indexed.candidate.last_used_at_unix_s = Some(used_at_unix_s);
             return true;
         }
         false
     }
 
     pub fn demo_seed() -> Self {
-        Self {
-            candidates: Self::demo_candidates(),
-        }
+        Self::new(Self::demo_candidates())
     }
 
     pub fn demo_candidates() -> Vec<Candidate> {
@@ -82,12 +96,10 @@ impl QueryEngine {
         let store = SqliteStore::open(path)?;
         let candidates = store.load_candidates(None)?;
         if candidates.is_empty() {
-            return Ok(Self {
-                candidates: Self::demo_candidates(),
-            });
+            return Ok(Self::new(Self::demo_candidates()));
         }
 
-        Ok(Self { candidates })
+        Ok(Self::new(candidates))
     }
 
     pub fn bootstrap_sqlite(path: impl AsRef<Path>) -> Result<(), StorageError> {
@@ -118,6 +130,25 @@ impl QueryEngine {
                 .web_search_engine
                 .build_search_url(normalized_query),
         )
+    }
+}
+
+impl IndexedCandidate {
+    fn new(candidate: Candidate) -> Self {
+        // Normalize once; reuse for fuzzy/contains/path scoring.
+        let title_search = normalize_for_search(&candidate.title);
+        let subtitle_search = candidate
+            .subtitle
+            .as_ref()
+            .map(|subtitle| normalize_for_search(subtitle));
+        let path_search = normalize_for_search(&candidate.path);
+
+        Self {
+            candidate,
+            title_search,
+            subtitle_search,
+            path_search,
+        }
     }
 }
 

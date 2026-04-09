@@ -3,6 +3,14 @@ pub struct PreparedQuery<'a> {
     chars: Vec<char>,
 }
 
+const MAX_DP_QUERY_LEN: usize = 64;
+const MATCH_BASE: i64 = 10;
+const WORD_BOUNDARY_BONUS: i64 = 8;
+const LEADING_BONUS_MAX_INDEX: usize = 5;
+const LEADING_BONUS_STEP: i64 = 2;
+const CONSECUTIVE_BONUS_STEP: i64 = 6;
+const MAX_GAP_PENALTY: i64 = 20;
+
 impl PreparedQuery<'_> {
     fn raw(&self) -> &str {
         self.raw
@@ -41,17 +49,103 @@ pub fn fuzzy_score_prepared(query: &PreparedQuery<'_>, title: &str) -> Option<i6
         return Some(1_500 - (t.len() as i64 - q.len() as i64).max(0));
     }
 
+    // Bounded DP gives better alignment quality for normal launcher queries.
+    // Very long queries fall back to greedy to keep worst-case CPU predictable.
+    if query.len() > MAX_DP_QUERY_LEN {
+        return greedy_subsequence_score(query, t);
+    }
+
+    fuzzy_score_dp_prepared(query, t)
+}
+
+fn greedy_subsequence_score(query: &PreparedQuery<'_>, title: &str) -> Option<i64> {
     let mut qi = 0usize;
     let mut score = 0i64;
 
-    for ch in t.chars() {
+    for ch in title.chars() {
         if qi < query.len() && ch == query.chars[qi] {
             qi += 1;
-            score += 10;
+            score += MATCH_BASE;
         }
     }
 
     if qi == query.len() { Some(score) } else { None }
+}
+
+#[derive(Clone, Copy)]
+struct MatchState {
+    score: i64,
+    last_match_idx: usize,
+    consecutive: i64,
+}
+
+fn fuzzy_score_dp_prepared(query: &PreparedQuery<'_>, title: &str) -> Option<i64> {
+    let q_len = query.len();
+    if q_len == 0 {
+        return Some(0);
+    }
+
+    // 1D DP where dp[i] stores the best way to match query[0..=i]
+    // up to the current title position.
+    let mut dp = [None::<MatchState>; MAX_DP_QUERY_LEN];
+    let mut prev_char: Option<char> = None;
+
+    for (ti, ch) in title.chars().enumerate() {
+        let is_word_boundary = ti == 0 || matches!(prev_char, Some(' ' | '-' | '_' | '/' | '.'));
+        let leading_bonus = if ti < LEADING_BONUS_MAX_INDEX {
+            (LEADING_BONUS_MAX_INDEX - ti) as i64 * LEADING_BONUS_STEP
+        } else {
+            0
+        };
+        let position_bonus = if is_word_boundary {
+            WORD_BOUNDARY_BONUS
+        } else {
+            0
+        } + leading_bonus;
+
+        // Iterate backwards so current character updates do not affect states
+        // needed by larger qi in the same title position.
+        for qi in (0..q_len).rev() {
+            if ch != query.chars[qi] {
+                continue;
+            }
+
+            let (new_score, new_consecutive) = if qi == 0 {
+                (MATCH_BASE + position_bonus, 0)
+            } else if let Some(prev) = dp[qi - 1] {
+                let gap = (ti - prev.last_match_idx - 1) as i64;
+                if gap == 0 {
+                    let consecutive = prev.consecutive + 1;
+                    (
+                        prev.score
+                            + MATCH_BASE
+                            + position_bonus
+                            + (consecutive * CONSECUTIVE_BONUS_STEP),
+                        consecutive,
+                    )
+                } else {
+                    (
+                        prev.score + MATCH_BASE + position_bonus - gap.min(MAX_GAP_PENALTY),
+                        0,
+                    )
+                }
+            } else {
+                continue;
+            };
+
+            if dp[qi].is_none_or(|existing| new_score > existing.score) {
+                dp[qi] = Some(MatchState {
+                    score: new_score,
+                    last_match_idx: ti,
+                    consecutive: new_consecutive,
+                });
+            }
+        }
+
+        prev_char = Some(ch);
+    }
+
+    dp[q_len - 1].map(|state| state.score.max(0))
 }
 
 pub fn fuzzy_quality_bonus_prepared(query: &PreparedQuery<'_>, title: &str) -> i64 {
@@ -183,5 +277,16 @@ mod tests {
         let tight = fuzzy_quality_bonus_prepared(&prepared, "vs code");
         let loose = fuzzy_quality_bonus_prepared(&prepared, "visual studio code");
         assert!(tight > loose);
+    }
+
+    #[test]
+    fn dp_base_score_prefers_dense_clusters_over_sparse_greedy_paths() {
+        let prepared = prepare_query("app");
+        let sparse = fuzzy_score_prepared(&prepared, "a_partial_app.rs").unwrap();
+        let dense = fuzzy_score_prepared(&prepared, "my_app.rs").unwrap();
+        assert!(
+            dense > sparse,
+            "dense ({dense}) should be > sparse ({sparse})"
+        );
     }
 }

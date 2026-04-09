@@ -1,6 +1,5 @@
 use crate::QueryEngine;
 use crate::config::*;
-use crate::normalize::normalize_for_search;
 use crate::query::ParsedQuery;
 use crate::scoring::{
     ScoredMatch, contains_match_score, default_browse_score, finalize_top_k,
@@ -31,8 +30,11 @@ fn strip_search_titles(
 }
 
 impl QueryEngine {
-    fn kind_matches(candidate: &Candidate, kind_filter: Option<&CandidateKind>) -> bool {
-        kind_filter.is_none_or(|kind| &candidate.kind == kind)
+    fn kind_matches(
+        candidate: &crate::IndexedCandidate,
+        kind_filter: Option<&CandidateKind>,
+    ) -> bool {
+        kind_filter.is_none_or(|kind| &candidate.candidate.kind == kind)
     }
 
     fn search_empty_query(
@@ -51,8 +53,12 @@ impl QueryEngine {
             .iter()
             .filter(|candidate| Self::kind_matches(candidate, kind_filter))
         {
-            let score = default_browse_score(candidate, now_unix_s);
-            push_top_k(&mut top, ScoredMatch::new(candidate.clone(), score), limit);
+            let score = default_browse_score(&candidate.candidate, now_unix_s);
+            push_top_k(
+                &mut top,
+                ScoredMatch::new(candidate.candidate.clone(), score),
+                limit,
+            );
         }
 
         finalize_top_k(top)
@@ -80,9 +86,10 @@ impl QueryEngine {
             .iter()
             .filter(|candidate| Self::kind_matches(candidate, kind_filter))
         {
-            let title_match = regex.is_match(&candidate.title);
-            let path_match = regex.is_match(&candidate.path);
+            let title_match = regex.is_match(&candidate.candidate.title);
+            let path_match = regex.is_match(&candidate.candidate.path);
             let subtitle_match = candidate
+                .candidate
                 .subtitle
                 .as_ref()
                 .is_some_and(|subtitle| regex.is_match(subtitle));
@@ -99,10 +106,12 @@ impl QueryEngine {
                 _ => SCORE_REGEX_PATH_ONLY,
             };
 
-            let final_score = regex_score + kind_bias(candidate) + path_depth_penalty(candidate);
+            let final_score = regex_score
+                + kind_bias(&candidate.candidate)
+                + path_depth_penalty(&candidate.candidate);
             push_top_k(
                 &mut top,
-                ScoredMatch::new(candidate.clone(), final_score),
+                ScoredMatch::new(candidate.candidate.clone(), final_score),
                 limit,
             );
         }
@@ -126,22 +135,18 @@ impl QueryEngine {
             .iter()
             .filter(|candidate| Self::kind_matches(candidate, kind_filter))
         {
-            let title_search = normalize_for_search(&candidate.title);
-            let subtitle_search = candidate
-                .subtitle
-                .as_ref()
-                .map(|subtitle| normalize_for_search(subtitle));
-            let path_search = normalize_for_search(&candidate.path);
-
-            let title_score = fuzzy_score_prepared(&prepared_query, &title_search);
+            // Use precomputed normalized strings from IndexedCandidate.
+            // This avoids normalize_for_search allocations in the hot loop.
+            let title_score = fuzzy_score_prepared(&prepared_query, &candidate.title_search);
+            let subtitle_search = candidate.subtitle_search.as_deref();
             let subtitle_score = subtitle_search
                 .as_ref()
                 .and_then(|subtitle| fuzzy_score_prepared(&prepared_query, subtitle))
                 .map(|value| value / 2);
             let contains_score =
-                contains_match_score(normalized_query, &title_search, subtitle_search.as_deref());
+                contains_match_score(normalized_query, &candidate.title_search, subtitle_search);
             let path_score = if has_path_hint {
-                path_match_score(normalized_query, &path_search)
+                path_match_score(normalized_query, &candidate.path_search)
             } else {
                 None
             };
@@ -155,13 +160,21 @@ impl QueryEngine {
                 continue;
             };
 
-            let final_score = rank_score(base, normalized_query, candidate, &title_search)
-                + kind_bias(candidate)
-                + query_kind_penalty(normalized_query, candidate)
-                + path_depth_penalty(candidate);
+            let final_score = rank_score(
+                base,
+                normalized_query,
+                &candidate.candidate,
+                &candidate.title_search,
+            ) + kind_bias(&candidate.candidate)
+                + query_kind_penalty(normalized_query, &candidate.candidate)
+                + path_depth_penalty(&candidate.candidate);
             push_top_k(
                 &mut top,
-                ScoredMatch::new_with_search_title(candidate.clone(), final_score, title_search),
+                ScoredMatch::new_with_search_title(
+                    candidate.candidate.clone(),
+                    final_score,
+                    candidate.title_search.clone(),
+                ),
                 pool_limit,
             );
         }

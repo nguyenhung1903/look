@@ -1,5 +1,7 @@
 use look_indexing::Candidate;
 
+const USAGE_LOG_SCALE: f64 = 5.0;
+
 pub fn rank_score(base_score: i64, query: &str, candidate: &Candidate, title_lower: &str) -> i64 {
     let mut score = base_score;
 
@@ -11,7 +13,11 @@ pub fn rank_score(base_score: i64, query: &str, candidate: &Candidate, title_low
         score += 200;
     }
 
-    score += candidate.use_count as i64 * 5;
+    // Log scaling keeps frequent items helpful without permanently dominating
+    // weak textual matches.
+    if candidate.use_count > 0 {
+        score += ((candidate.use_count as f64).log2() * USAGE_LOG_SCALE) as i64;
+    }
 
     if candidate.last_used_at_unix_s.is_some() {
         score += 25;
@@ -54,11 +60,15 @@ mod tests {
     #[test]
     fn usage_count_boosts_score() {
         let no_usage = test_candidate("App", 0, None);
-        let high_usage = test_candidate("App", 10, None);
+        let medium_usage = test_candidate("App", 10, None);
+        let high_usage = test_candidate("App", 100, None);
         let s1 = rank_score(100, "app", &no_usage, "app");
-        let s2 = rank_score(100, "app", &high_usage, "app");
+        let s2 = rank_score(100, "app", &medium_usage, "app");
+        let s3 = rank_score(100, "app", &high_usage, "app");
         assert!(s2 > s1);
-        assert!(s2 - s1 >= 50);
+        assert!(s3 > s2);
+        assert!(s2 - s1 <= 20, "10 uses should stay bounded: {}", s2 - s1);
+        assert!(s3 - s2 <= 20, "100 uses should flatten growth: {}", s3 - s2);
     }
 
     #[test]
