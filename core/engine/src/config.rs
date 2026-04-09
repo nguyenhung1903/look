@@ -1,10 +1,11 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
-pub const APP_SCAN_ROOTS: [&str; 3] = [
+pub const APP_SCAN_ROOTS: [&str; 4] = [
     "/Applications",
     "/System/Applications",
     "/System/Applications/Utilities",
+    "/System/Library/CoreServices/Finder.app/Contents/Applications",
 ];
 
 pub const APP_SCAN_DEPTH: usize = 3;
@@ -213,7 +214,7 @@ fn default_config_contents() -> &'static str {
 # Generated on first launch. Edit values and press Cmd+Shift+; to reload.\n\
 \n\
 # Backend indexing\n\
-app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities\n\
+app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities,/System/Library/CoreServices/Finder.app/Contents/Applications\n\
 app_scan_depth=3\n\
 app_exclude_paths=\n\
 app_exclude_names=\n\
@@ -325,6 +326,15 @@ mod tests {
         assert_eq!(
             normalize_app_name("  Visual Studio Code  "),
             "visual studio code"
+        );
+    }
+
+    #[test]
+    fn app_scan_roots_include_finder_embedded_apps() {
+        assert!(
+            APP_SCAN_ROOTS.iter().any(
+                |root| root == &"/System/Library/CoreServices/Finder.app/Contents/Applications"
+            )
         );
     }
 }

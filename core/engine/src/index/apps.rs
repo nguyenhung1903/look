@@ -5,6 +5,9 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 
+const FINDER_EMBEDDED_APPS_ROOT: &str =
+    "/System/Library/CoreServices/Finder.app/Contents/Applications";
+
 pub fn discover_installed_apps(
     config: &RuntimeConfig,
     seen: &mut HashSet<String>,
@@ -16,6 +19,10 @@ pub fn discover_installed_apps(
         if !roots.iter().any(|root| root == &home_apps) {
             roots.push(home_apps);
         }
+    }
+
+    if !roots.iter().any(|root| root == FINDER_EMBEDDED_APPS_ROOT) {
+        roots.push(FINDER_EMBEDDED_APPS_ROOT.to_string());
     }
 
     for root in roots {

@@ -83,6 +83,7 @@ Later:
 - [x] add ffi-level smoke tests for `look_search_json` and `look_record_usage`
 - [x] add debug logging hooks (startup indexing summary, query timing, action execution outcome)
 - [x] add a log-level toggle (`error`/`info`/`debug`) via env var for local troubleshooting
+- [ ] add optional persistent backend log file with size-based rotation and retention cap
 
 ## Backlog: UI Enhancements
 
