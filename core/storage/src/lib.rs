@@ -185,13 +185,14 @@ impl SqliteStore {
         let mut out = Vec::new();
         while let Some(row) = rows.next()? {
             let kind_raw: String = row.get(1)?;
+            let use_count_raw: i64 = row.get(5)?;
             out.push(Candidate {
                 id: row.get(0)?,
                 kind: parse_kind(&kind_raw)?,
                 title: row.get(2)?,
                 subtitle: row.get(3)?,
                 path: row.get(4)?,
-                use_count: row.get(5)?,
+                use_count: to_use_count(use_count_raw)?,
                 last_used_at_unix_s: row.get(6)?,
             });
         }
@@ -213,13 +214,14 @@ impl SqliteStore {
             )?;
 
             for candidate in candidates {
+                let use_count = from_use_count(candidate.use_count)?;
                 stmt.execute(params![
                     candidate.id,
                     kind_key(&candidate.kind),
                     candidate.title,
                     candidate.subtitle,
                     candidate.path,
-                    candidate.use_count,
+                    use_count,
                     candidate.last_used_at_unix_s,
                 ])?;
             }
@@ -240,13 +242,14 @@ impl SqliteStore {
             )?;
 
             for candidate in candidates {
+                let use_count = from_use_count(candidate.use_count)?;
                 stmt.execute(params![
                     candidate.id,
                     kind_key(&candidate.kind),
                     candidate.title,
                     candidate.subtitle,
                     candidate.path,
-                    candidate.use_count,
+                    use_count,
                     candidate.last_used_at_unix_s,
                 ])?;
             }
@@ -363,6 +366,16 @@ impl SqliteStore {
 
         Ok(())
     }
+}
+
+fn to_use_count(value: i64) -> StorageResult<u64> {
+    u64::try_from(value)
+        .map_err(|_| StorageError::Data(format!("invalid use_count in sqlite: {value}")))
+}
+
+fn from_use_count(value: u64) -> StorageResult<i64> {
+    i64::try_from(value)
+        .map_err(|_| StorageError::Data(format!("use_count overflow for sqlite: {value}")))
 }
 
 /// RFC 3986 percent-encoding: unreserved characters are passed through,
