@@ -153,13 +153,15 @@ struct LookupDefinitionPanelView: View {
 
     private func definitionEntryView(_ entry: LookupDefinitionEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(entry.partOfSpeech)
-                .font(.system(size: CGFloat(themeStore.settings.fontSize), weight: .semibold, design: .serif))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.75))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(themeStore.fontColor(opacityMultiplier: 0.1))
-                .cornerRadius(4)
+            if let pos = entry.partOfSpeech {
+                Text(pos)
+                    .font(.system(size: CGFloat(themeStore.settings.fontSize), weight: .semibold, design: .serif))
+                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.75))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(themeStore.fontColor(opacityMultiplier: 0.1))
+                    .cornerRadius(4)
+            }
 
             ForEach(Array(entry.senses.enumerated()), id: \.offset) { _, sense in
                 senseEntryView(sense)

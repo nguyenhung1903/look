@@ -226,8 +226,7 @@ extension DictionaryParser {
             : parseVietnameseWithPOS(raw: raw, posSections: posSections, bulletParts: bulletParts, allPosKeywords: allPosKeywords)
 
         guard !definitions.isEmpty else { return nil }
-        let mainPos = definitions.first?.partOfSpeech ?? "adjective"
-        return LookupPresentation(title: title, partOfSpeech: mainPos, definitions: definitions)
+        return LookupPresentation(title: title, partOfSpeech: definitions.first?.partOfSpeech, definitions: definitions)
     }
 
     private static func parseVietnameseWithPOS(raw: String, posSections: [(pos: String, startIndex: String.Index)], bulletParts: [String], allPosKeywords: [String]) -> [LookupDefinitionEntry] {
@@ -374,7 +373,7 @@ extension DictionaryParser {
             }
         }
 
-        return [LookupDefinitionEntry(partOfSpeech: "adjective", senses: senses)]
+        return [LookupDefinitionEntry(partOfSpeech: nil, senses: senses)]
     }
 
     private static func distributeExamplesToSenses(senses: [LookupSenseEntry], bulletParts: [String], sectionStart: String.Index, sectionEnd: String.Index, raw: String) -> [LookupSenseEntry] {
@@ -466,7 +465,7 @@ extension DictionaryParser {
         if definitions.isEmpty {
             let senses = extractSensesWithAntonyms(text, maxSenses: 3)
             if !senses.isEmpty {
-                definitions.append(LookupDefinitionEntry(partOfSpeech: "adjective", senses: senses))
+                definitions.append(LookupDefinitionEntry(partOfSpeech: nil, senses: senses))
             }
         }
 

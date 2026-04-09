@@ -219,7 +219,7 @@ Click the speaker icon next to any text to hear it read aloud (uses system TTS v
 - Up to 10 senses per section; excess are not shown
 - Up to 2 examples per sense; excess are not shown
 - Very long definitions are truncated with "..."
-- Vietnamese entries without POS keywords default to "adjective"
+- Entries without explicit part-of-speech (POS) keywords will not display a POS label
 - Japanese reference markers (⇨...) are stripped from definitions
 - English phrases limited to 3 items
 

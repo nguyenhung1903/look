@@ -22,7 +22,7 @@ struct LookupPresentation {
 }
 
 struct LookupDefinitionEntry {
-    let partOfSpeech: String
+    let partOfSpeech: String?
     let senses: [LookupSenseEntry]
 }
 

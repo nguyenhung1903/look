@@ -16,7 +16,7 @@ struct LookupPresentation {
 }
 
 struct LookupDefinitionEntry {
-    let partOfSpeech: String
+    let partOfSpeech: String?
     let senses: [LookupSenseEntry]
 }
 
@@ -162,8 +162,7 @@ func parseVietnamese(_ raw: String) -> LookupPresentation? {
         : parseVietnameseWithPOS(raw: raw, posSections: posSections, bulletParts: bulletParts, allPosKeywords: allPosKeywords)
 
     guard !definitions.isEmpty else { return nil }
-    let mainPos = definitions.first?.partOfSpeech ?? "adjective"
-    return LookupPresentation(title: title, partOfSpeech: mainPos, definitions: definitions)
+    return LookupPresentation(title: title, partOfSpeech: definitions.first?.partOfSpeech, definitions: definitions)
 }
 
 func parseVietnameseWithPOS(raw: String, posSections: [(pos: String, startIndex: String.Index)], bulletParts: [String], allPosKeywords: [String]) -> [LookupDefinitionEntry] {
@@ -310,7 +309,7 @@ func parseVietnameseNoPOS(raw: String, allPosKeywords: [String]) -> [LookupDefin
         }
     }
 
-    return [LookupDefinitionEntry(partOfSpeech: "adjective", senses: senses)]
+    return [LookupDefinitionEntry(partOfSpeech: nil, senses: senses)]
 }
 
 func distributeExamplesToSenses(senses: [LookupSenseEntry], bulletParts: [String], sectionStart: String.Index, sectionEnd: String.Index, raw: String) -> [LookupSenseEntry] {
@@ -521,7 +520,7 @@ func parseEnglish(_ raw: String) -> LookupPresentation? {
     if definitions.isEmpty {
         let senses = extractSensesWithAntonyms(text, maxSenses: 3)
         if !senses.isEmpty {
-            definitions.append(LookupDefinitionEntry(partOfSpeech: "adjective", senses: senses))
+            definitions.append(LookupDefinitionEntry(partOfSpeech: nil, senses: senses))
         }
     }
 
