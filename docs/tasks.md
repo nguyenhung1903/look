@@ -12,15 +12,19 @@ Now:
 
 Next:
 
-- [x] add ffi-level smoke tests for `look_search_json` and `look_record_usage`
-- [x] add structured error mapping for UI feedback
-- [ ] route settings updates to backend persistence
+- [x] keep `.look.config` as canonical user settings source (no backend table migration for user-editable settings)
+- [x] finish open Milestone G reliability tasks (error model + user fallback messaging)
 
-Later:
+Recently completed (current optimization cycle):
 
-- [ ] add in-memory cache for top-N results
-- [ ] add result pagination/streaming for large result sets (optional)
-- [ ] Homebrew release packaging
+- [x] move hot-path candidate normalization to load-time precompute
+- [x] replace greedy fuzzy base matching with bounded DP scorer
+- [x] switch usage boost to logarithmic scaling
+- [x] tune settings/query disambiguation (`ingo` noise fix + `sett` prefix intent)
+- [x] add compact FFI search payload and switch UI bridge default to compact path
+- [x] stream indexing with bounded channels and chunked bootstrap upsert
+- [x] add stale candidate cleanup and usage-event retention policy
+- [x] migrate `Candidate` read-mostly text fields to `Box<str>`
 
 ## Milestone A: Storage foundation (SQLite)
 
@@ -45,6 +49,10 @@ Later:
 - [x] support exclude paths and hidden file policy (`app_exclude_paths`, `app_exclude_names`, `file_exclude_paths`)
 - [x] add startup full scan + snapshot upsert
 - [x] persist index snapshots to SQLite
+- [x] move indexing to streaming source pipeline with bounded channel backpressure
+- [x] add worker panic diagnostics for indexing threads
+- [x] switch file traversal to `ignore::WalkBuilder`
+- [x] add chunked bootstrap upsert path (no full discovery vector required)
 
 ## Milestone D: Bridge and app integration
 
@@ -54,7 +62,7 @@ Later:
 - [x] translate text via FFI (network-gated)
 - [x] command mode with `calc`, `shell`, `kill` commands
 - [x] command keyboard shortcuts (Cmd+/, Cmd+1/2/3, Tab, Esc hide, Cmd+Esc)
-- [ ] route settings updates to backend persistence
+- [x] keep settings persistence file-based via `.look.config` (user-portable, copyable config)
 - [x] add structured error mapping for UI feedback
 
 ## Milestone E: Ranking and safety
@@ -71,12 +79,23 @@ Later:
 - [ ] add in-memory cache for top-N results
 - [x] optimize startup path and background index scheduling
 - [x] add diagnostics/debug toggles for development
-- [ ] update docs and user guide for finalized behavior
+- [x] update docs and user guide for finalized behavior
+- [x] remove hot-loop normalization allocations via indexed candidate precompute
+- [x] reduce ranking-heap extra string allocations in rerank flow
+- [x] optimize FFI search payload size with compact endpoint
+
+## Milestone H: Data lifecycle and retention
+
+- [x] add candidate `indexed_at_unix_s` watermarking in SQLite
+- [x] delete stale candidates not refreshed in current index run
+- [x] clean legacy `NULL` indexed candidates during stale cleanup
+- [x] prune `usage_events` by age window (90 days)
+- [x] enforce max `usage_events` cap (50,000 rows)
 
 ## Milestone G: Reliability (errors, tests, logs)
 
-- [ ] add structured error model across engine/storage/ffi boundaries
-- [ ] add safe user-facing fallback messages for action failures
+- [x] complete phase-2 structured error model across engine/storage/ffi boundaries
+- [x] add safe user-facing fallback messages for action failures
 - [x] add unit tests for search scoring and empty-query top-picks behavior
 - [ ] add unit tests for curated settings catalog integrity (id/title/target validity)
 - [x] add storage tests for usage-event writes and candidate upsert semantics

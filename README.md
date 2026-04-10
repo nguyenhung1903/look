@@ -115,7 +115,8 @@ Indexing config supports include roots plus exclude rules for both apps and file
 - `a"` / `f"` / `d"` / `r"`: apps/files/folders/regex scoped query prefix
 - `c"`: clipboard history scoped query prefix
 - `Cmd+Shift+,`: open/close settings panel
-- `Cmd+Shift+;`: reload `.look.config`
+- `Cmd+Shift+;`: reload `.look.config` after manual file edits
+- `Escape` (while settings open): close settings panel
 - `Cmd+-`, `Cmd+=`, `Cmd+0`: temporary UI zoom out/in/reset
 
 ## Installation

@@ -28,6 +28,8 @@ struct FfiSearchPayload<'a> {
 struct FfiCompactSearchPayload<'a> {
     count: usize,
     results: Vec<FfiCompactLaunchResult<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<FfiErrorPayload>,
 }
 
 #[derive(Serialize)]
@@ -44,6 +46,25 @@ struct FfiCompactLaunchResult<'a> {
 struct FfiErrorPayload {
     code: &'static str,
     message: String,
+}
+
+#[derive(Clone, Copy)]
+enum SearchError {
+    SerializeFailed,
+}
+
+impl SearchError {
+    fn code(self) -> &'static str {
+        match self {
+            Self::SerializeFailed => "serialize_failed",
+        }
+    }
+
+    fn message(self) -> &'static str {
+        match self {
+            Self::SerializeFailed => "Failed to serialize search results",
+        }
+    }
 }
 
 pub(crate) fn look_search_count_impl(query_len: u32) -> FfiSearchResult {
@@ -85,12 +106,16 @@ pub(crate) fn look_search_json_compact_impl(query: *const c_char, limit: u32) ->
     let payload = FfiCompactSearchPayload {
         count: result_count,
         results: compact_results,
+        error: None,
     };
 
     let json = serde_json::to_string(&payload)
-        .unwrap_or_else(|_| "{\"count\":0,\"results\":[]}".to_string());
+        .unwrap_or_else(|_| search_error_json_compact(SearchError::SerializeFailed));
     let cstring = CString::new(json).unwrap_or_else(|_| {
-        CString::new("{\"count\":0,\"results\":[]}").expect("valid static json")
+        CString::new(
+            "{\"count\":0,\"results\":[],\"error\":{\"code\":\"serialize_failed\",\"message\":\"Failed to serialize search results\"}}",
+        )
+            .expect("valid static json")
     });
     log_debug(&format!(
         "search_compact query_len={} limit={} count={} elapsed_ms={}",
@@ -132,20 +157,35 @@ fn serialize_full_payload(query: &str, results: Vec<look_engine::LaunchResult>) 
         error: None,
     };
 
-    let json = serde_json::to_string(&payload).unwrap_or_else(|_| {
-        serde_json::json!({
-            "query": query,
-            "count": 0,
-            "results": [],
-            "error": {
-                "code": "serialize_failed",
-                "message": "Failed to serialize search results"
-            }
-        })
-        .to_string()
-    });
+    let json = serde_json::to_string(&payload)
+        .unwrap_or_else(|_| search_error_json_full(query, SearchError::SerializeFailed));
 
     CString::new(json).unwrap_or_else(|_| {
         CString::new("{\"query\":\"\",\"count\":0,\"results\":[]}").expect("valid static json")
     })
+}
+
+fn search_error_json_full(query: &str, err: SearchError) -> String {
+    serde_json::json!({
+        "query": query,
+        "count": 0,
+        "results": [],
+        "error": {
+            "code": err.code(),
+            "message": err.message()
+        }
+    })
+    .to_string()
+}
+
+fn search_error_json_compact(err: SearchError) -> String {
+    serde_json::json!({
+        "count": 0,
+        "results": [],
+        "error": {
+            "code": err.code(),
+            "message": err.message()
+        }
+    })
+    .to_string()
 }

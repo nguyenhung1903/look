@@ -110,3 +110,79 @@ pub fn discover_system_settings_entries(tx: mpsc::SyncSender<Candidate>) {
         let _ = tx.send(candidate);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use look_indexing::CandidateIdKind;
+    use std::collections::HashSet;
+
+    #[test]
+    fn curated_settings_catalog_has_valid_fields() {
+        let mut seen_bundle_ids = HashSet::new();
+        let mut seen_titles = HashSet::new();
+
+        for entry in SETTINGS_CATALOG {
+            assert!(!entry.title.trim().is_empty(), "title must be non-empty");
+            assert!(
+                seen_titles.insert(entry.title.to_ascii_lowercase()),
+                "duplicate title: {}",
+                entry.title
+            );
+
+            assert!(
+                !entry.bundle_id.trim().is_empty(),
+                "bundle_id must be non-empty"
+            );
+            assert!(
+                entry.bundle_id.starts_with("com.apple."),
+                "bundle_id should use com.apple.* namespace: {}",
+                entry.bundle_id
+            );
+            assert!(
+                entry
+                    .bundle_id
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-' || ch == '_'),
+                "bundle_id has invalid chars: {}",
+                entry.bundle_id
+            );
+            assert!(
+                seen_bundle_ids.insert(entry.bundle_id.to_ascii_lowercase()),
+                "duplicate bundle_id: {}",
+                entry.bundle_id
+            );
+
+            assert!(
+                !entry.aliases.trim().is_empty(),
+                "aliases must be non-empty"
+            );
+            assert!(
+                entry.aliases.contains("settings"),
+                "aliases should include settings hint: {}",
+                entry.aliases
+            );
+        }
+    }
+
+    #[test]
+    fn discovery_outputs_valid_settings_candidates() {
+        let (tx, rx) = mpsc::sync_channel(64);
+        discover_system_settings_entries(tx);
+        let discovered: Vec<Candidate> = rx.into_iter().collect();
+
+        assert_eq!(discovered.len(), SETTINGS_CATALOG.len());
+
+        for candidate in discovered {
+            assert_eq!(candidate.kind, CandidateKind::App);
+            assert!(candidate.id.starts_with(CandidateIdKind::PREFIX_SETTING));
+            assert!(candidate.path.starts_with(SETTINGS_URL_SCHEME_PREFIX));
+            assert!(
+                candidate
+                    .subtitle
+                    .as_deref()
+                    .is_some_and(|s| s.starts_with(SETTINGS_SUBTITLE_PREFIX))
+            );
+        }
+    }
+}

@@ -20,6 +20,8 @@ final class ThemeStore: ObservableObject {
         }
     }
 
+    @Published private(set) var excludedFolderPaths: [String] = []
+
     private let defaultsKey = "look.theme.settings"
     private var scopedBackgroundURL: URL?
 
@@ -85,6 +87,7 @@ final class ThemeStore: ObservableObject {
         upsertConfigLine(&lines, key: "ui_border_opacity", value: String(format: "%.2f", settings.borderOpacity))
         upsertConfigLine(&lines, key: "file_scan_depth", value: String(settings.fileScanDepth))
         upsertConfigLine(&lines, key: "file_scan_limit", value: String(settings.fileScanLimit))
+        upsertConfigLine(&lines, key: "file_exclude_paths", value: excludedFolderPaths.joined(separator: ","))
         upsertConfigLine(&lines, key: "backend_log_level", value: settings.backendLogLevel.rawValue)
         upsertConfigLine(&lines, key: "launch_at_login", value: settings.launchAtLogin ? "true" : "false")
 
@@ -169,6 +172,23 @@ final class ThemeStore: ObservableObject {
         settings.backgroundImageBookmark = bookmark
     }
 
+    func addExcludedFolderPath(url: URL) {
+        let normalizedPath = normalizeExcludedFolderPath(url.path)
+        guard !normalizedPath.isEmpty else {
+            return
+        }
+        if excludedFolderPaths.contains(normalizedPath) {
+            return
+        }
+        excludedFolderPaths.append(normalizedPath)
+        excludedFolderPaths.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    func removeExcludedFolderPath(_ path: String) {
+        let normalizedPath = normalizeExcludedFolderPath(path)
+        excludedFolderPaths.removeAll { $0 == normalizedPath }
+    }
+
     deinit {
         scopedBackgroundURL?.stopAccessingSecurityScopedResource()
     }
@@ -182,6 +202,8 @@ final class ThemeStore: ObservableObject {
         guard let raw = try? String(contentsOf: Self.configPath(), encoding: .utf8) else {
             return
         }
+
+        excludedFolderPaths = []
 
         for line in raw.split(whereSeparator: \ .isNewline) {
             let stripped = stripComment(String(line)).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -273,6 +295,8 @@ final class ThemeStore: ObservableObject {
                 if let parsed = parsePositiveInt(value) {
                     settings.fileScanLimit = parsed
                 }
+            case "file_exclude_paths":
+                excludedFolderPaths = parseExcludedFolderPaths(value)
             case "backend_log_level":
                 if let parsed = parseBackendLogLevel(value) {
                     settings.backendLogLevel = parsed
@@ -377,6 +401,44 @@ final class ThemeStore: ObservableObject {
         lines.append("\(key)=\(value)")
     }
 
+    private func parseExcludedFolderPaths(_ value: String) -> [String] {
+        var seen = Set<String>()
+        var paths: [String] = []
+        for token in value.split(separator: ",") {
+            let normalized = normalizeExcludedFolderPath(String(token))
+            if normalized.isEmpty || seen.contains(normalized) {
+                continue
+            }
+            seen.insert(normalized)
+            paths.append(normalized)
+        }
+        return paths.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func normalizeExcludedFolderPath(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return ""
+        }
+        let expanded = expandConfigLikePath(trimmed)
+        return URL(fileURLWithPath: expanded).standardizedFileURL.path
+    }
+
+    private func expandConfigLikePath(_ value: String) -> String {
+        let home = NSHomeDirectory()
+        if value == "~" {
+            return home
+        }
+        if value.hasPrefix("~/") {
+            let relative = value.dropFirst(2)
+            return home + "/" + relative
+        }
+        if value.hasPrefix("/") {
+            return value
+        }
+        return home + "/" + value
+    }
+
     private func resolveUsableFontName(_ input: String) -> String? {
         if let exact = NSFont(name: input, size: 12) {
             return exact.fontName
@@ -427,7 +489,7 @@ file_scan_limit=8000
 file_exclude_paths=
 backend_log_level=error
 launch_at_login=true
-skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
+skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data,deriveddata,pods,vendor,out,coverage,tmp,cache,venv
 
 # UI theme
 ui_tint_red=0.08

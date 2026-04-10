@@ -8,9 +8,9 @@ private func look_search_json(_ query: UnsafePointer<CChar>?, _ limit: UInt32) -
 nonisolated
 private func look_search_json_compact(_ query: UnsafePointer<CChar>?, _ limit: UInt32) -> UnsafeMutablePointer<CChar>?
 
-@_silgen_name("look_record_usage")
+@_silgen_name("look_record_usage_json")
 nonisolated
-private func look_record_usage(_ candidateID: UnsafePointer<CChar>?, _ action: UnsafePointer<CChar>?) -> Bool
+private func look_record_usage_json(_ candidateID: UnsafePointer<CChar>?, _ action: UnsafePointer<CChar>?) -> UnsafeMutablePointer<CChar>?
 
 @_silgen_name("look_free_cstring")
 nonisolated
@@ -48,6 +48,9 @@ final class EngineBridge {
         }
 
         if let compactPayload = try? JSONDecoder().decode(CompactSearchPayload.self, from: data) {
+            if compactPayload.error != nil {
+                return fallbackResults()
+            }
             return compactPayload.results.map { item in
                 LauncherResult(
                     id: item.id,
@@ -79,12 +82,29 @@ final class EngineBridge {
         }
     }
 
-    nonisolated func recordUsage(candidateID: String, action: String) {
-        _ = candidateID.withCString { idCstr in
+    nonisolated func recordUsage(candidateID: String, action: String) -> BridgeError? {
+        let ptr = candidateID.withCString { idCstr in
             action.withCString { actionCstr in
-                look_record_usage(idCstr, actionCstr)
+                look_record_usage_json(idCstr, actionCstr)
             }
         }
+
+        guard let ptr else {
+            return BridgeError(code: "ffi_null_response", message: "Usage tracking is temporarily unavailable")
+        }
+
+        defer {
+            look_free_cstring(ptr)
+        }
+
+        let raw = String(cString: ptr)
+        guard let data = raw.data(using: .utf8),
+            let payload = try? JSONDecoder().decode(UsageRecordPayload.self, from: data)
+        else {
+            return BridgeError(code: "decode_failed", message: "Usage tracking response could not be decoded")
+        }
+
+        return payload.error
     }
 
     nonisolated func reloadConfig() -> Bool {
@@ -135,11 +155,21 @@ private nonisolated struct SearchPayload: Decodable {
 private nonisolated struct CompactSearchPayload: Decodable {
     let count: Int
     let results: [SearchItem]
+    let error: BridgeError?
+}
+
+private nonisolated struct UsageRecordPayload: Decodable {
+    let ok: Bool
+    let error: BridgeError?
 }
 
 nonisolated struct BridgeError: Decodable {
     let code: String
     let message: String
+
+    var userFacingMessage: String {
+        BridgeErrorMapping.userFacingMessage(code: code, fallback: message)
+    }
 }
 
 private nonisolated struct SearchItem: Decodable {

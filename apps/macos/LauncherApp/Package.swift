@@ -17,6 +17,7 @@ let package = Package(
                 "Support/HintText.swift",
                 "Support/AppConstants.swift",
                 "Support/LauncherSearchLogic.swift",
+                "Support/BridgeErrorMapping.swift",
                 "Models/LauncherResult.swift",
             ]
         ),

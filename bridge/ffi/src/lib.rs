@@ -31,6 +31,14 @@ pub extern "C" fn look_record_usage(candidate_id: *const c_char, action: *const 
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn look_record_usage_json(
+    candidate_id: *const c_char,
+    action: *const c_char,
+) -> *mut c_char {
+    usage_api::look_record_usage_json_impl(candidate_id, action)
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn look_reload_config() -> bool {
     runtime_config::reload_runtime_config();
     let path = state::default_db_path();
@@ -137,8 +145,57 @@ mod tests {
         let action = CString::new("open").expect("action cstring");
         assert!(look_record_usage(id.as_ptr(), action.as_ptr()));
 
+        let usage_ptr = look_record_usage_json(id.as_ptr(), action.as_ptr());
+        assert!(!usage_ptr.is_null());
+        let usage_raw = unsafe { CStr::from_ptr(usage_ptr) }
+            .to_string_lossy()
+            .into_owned();
+        look_free_cstring(usage_ptr);
+        let usage_payload: serde_json::Value =
+            serde_json::from_str(&usage_raw).expect("valid usage payload");
+        assert_eq!(
+            usage_payload.get("ok").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+
         let empty = CString::new("").expect("empty cstring");
         assert!(!look_record_usage(empty.as_ptr(), action.as_ptr()));
+        let invalid_ptr = look_record_usage_json(empty.as_ptr(), action.as_ptr());
+        assert!(!invalid_ptr.is_null());
+        let invalid_raw = unsafe { CStr::from_ptr(invalid_ptr) }
+            .to_string_lossy()
+            .into_owned();
+        look_free_cstring(invalid_ptr);
+        let invalid_payload: serde_json::Value =
+            serde_json::from_str(&invalid_raw).expect("valid invalid-usage payload");
+        assert_eq!(
+            invalid_payload.get("ok").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert!(
+            invalid_payload
+                .get("error")
+                .and_then(|e| e.get("code"))
+                .and_then(|v| v.as_str())
+                .is_some()
+        );
+
+        let bad_action = CString::new("not_a_usage_action").expect("bad action");
+        let bad_action_ptr = look_record_usage_json(id.as_ptr(), bad_action.as_ptr());
+        assert!(!bad_action_ptr.is_null());
+        let bad_action_raw = unsafe { CStr::from_ptr(bad_action_ptr) }
+            .to_string_lossy()
+            .into_owned();
+        look_free_cstring(bad_action_ptr);
+        let bad_action_payload: serde_json::Value =
+            serde_json::from_str(&bad_action_raw).expect("valid bad-action payload");
+        assert_eq!(
+            bad_action_payload
+                .get("error")
+                .and_then(|e| e.get("code"))
+                .and_then(|v| v.as_str()),
+            Some("invalid_usage_action")
+        );
 
         let loaded = SqliteStore::open(&db_path)
             .expect("reopen sqlite")
@@ -148,7 +205,7 @@ mod tests {
             .iter()
             .find(|candidate| candidate.id.as_ref() == "app:smoke.test")
             .expect("smoke candidate exists");
-        assert_eq!(updated.use_count, 1);
+        assert_eq!(updated.use_count, 2);
         assert!(updated.last_used_at_unix_s.is_some());
 
         let _ = fs::remove_file(&db_path);

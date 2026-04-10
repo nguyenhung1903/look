@@ -95,7 +95,7 @@ enum AppConstants {
     }
 
     enum ThemeUI {
-        static let labelWidth: CGFloat = 110
+        static let labelWidth: CGFloat = 150
         static let pickerWidth: CGFloat = 140
     }
 }

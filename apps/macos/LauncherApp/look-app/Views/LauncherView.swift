@@ -596,19 +596,28 @@ struct LauncherView: View {
 
         switch selected.kind {
         case .app:
-            openTarget(selected.path)
-            bridge.recordUsage(candidateID: selected.id, action: "open_app")
-            hideLauncherWindow()
-        case .file:
-            openTarget(selected.path)
-            bridge.recordUsage(candidateID: selected.id, action: "open_file")
-            hideLauncherWindow()
-        case .folder:
-            openTarget(selected.path)
-            if !selected.id.hasPrefix(AppConstants.Launcher.QuickFolder.idPrefix) {
-                bridge.recordUsage(candidateID: selected.id, action: "open_folder")
+            if openTarget(selected.path) {
+                if let error = bridge.recordUsage(candidateID: selected.id, action: "open_app") {
+                    showBanner(error.userFacingMessage, style: .info, duration: 1.4)
+                }
+                hideLauncherWindow()
             }
-            hideLauncherWindow()
+        case .file:
+            if openTarget(selected.path) {
+                if let error = bridge.recordUsage(candidateID: selected.id, action: "open_file") {
+                    showBanner(error.userFacingMessage, style: .info, duration: 1.4)
+                }
+                hideLauncherWindow()
+            }
+        case .folder:
+            if openTarget(selected.path) {
+                if !selected.id.hasPrefix(AppConstants.Launcher.QuickFolder.idPrefix),
+                    let error = bridge.recordUsage(candidateID: selected.id, action: "open_folder")
+                {
+                    showBanner(error.userFacingMessage, style: .info, duration: 1.4)
+                }
+                hideLauncherWindow()
+            }
         case .clipboard:
             guard let content = selected.clipboardContent, !content.isEmpty else { return }
             NSPasteboard.general.clearContents()
@@ -621,15 +630,26 @@ struct LauncherView: View {
         }
     }
 
-    private func openTarget(_ target: String) {
+    @discardableResult
+    private func openTarget(_ target: String) -> Bool {
         if target.contains(":") && !target.hasPrefix("/") {
             if let url = URL(string: target) {
-                NSWorkspace.shared.open(url)
-                return
+                if NSWorkspace.shared.open(url) {
+                    return true
+                }
+                showBanner("Could not open this item right now", style: .error, duration: 1.2)
+                return false
             }
+            showBanner("Invalid target URL", style: .error, duration: 1.2)
+            return false
         }
 
-        NSWorkspace.shared.open(URL(fileURLWithPath: target))
+        if NSWorkspace.shared.open(URL(fileURLWithPath: target)) {
+            return true
+        }
+
+        showBanner("Could not open this path", style: .error, duration: 1.2)
+        return false
     }
 
     private func revealSelectedInFinder() {
@@ -1081,7 +1101,7 @@ struct LauncherView: View {
                     "en",
                     NetworkTranslationResult(
                         translated: (translated?.isEmpty == false) ? translated : nil,
-                        errorMessage: result?.error?.message
+                        errorMessage: result?.error?.userFacingMessage
                     )
                 )
             }
@@ -1092,7 +1112,7 @@ struct LauncherView: View {
                     "vi",
                     NetworkTranslationResult(
                         translated: (translated?.isEmpty == false) ? translated : nil,
-                        errorMessage: result?.error?.message
+                        errorMessage: result?.error?.userFacingMessage
                     )
                 )
             }
@@ -1103,7 +1123,7 @@ struct LauncherView: View {
                     "ja",
                     NetworkTranslationResult(
                         translated: (translated?.isEmpty == false) ? translated : nil,
-                        errorMessage: result?.error?.message
+                        errorMessage: result?.error?.userFacingMessage
                     )
                 )
             }

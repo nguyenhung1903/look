@@ -20,15 +20,15 @@ repos:
   - repo: local
     hooks:
       - id: cargo-fmt-core
-        name: cargo fmt (core workspace)
-        entry: cargo fmt --manifest-path core/Cargo.toml --all -- --check
+        name: cargo fmt (core workspace, auto-fix)
+        entry: cargo fmt --manifest-path core/Cargo.toml --all
         language: system
         pass_filenames: false
         types: [rust]
 
       - id: cargo-fmt-ffi
-        name: cargo fmt (ffi workspace)
-        entry: cargo fmt --manifest-path bridge/ffi/Cargo.toml --all -- --check
+        name: cargo fmt (ffi workspace, auto-fix)
+        entry: cargo fmt --manifest-path bridge/ffi/Cargo.toml --all
         language: system
         pass_filenames: false
         types: [rust]

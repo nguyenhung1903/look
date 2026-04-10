@@ -27,13 +27,49 @@ fn walk_files(
     }
 
     let mut walker = WalkBuilder::new(path);
+    let root_path = path.to_string();
+    let exclude_paths = config.file_exclude_paths.clone();
+    let skip_dir_names = config.skip_dir_names.clone();
     walker
         .hidden(false)
         .git_ignore(false)
         .git_global(false)
         .git_exclude(false)
         .parents(false)
-        .max_depth(Some(config.file_scan_depth));
+        .max_depth(Some(config.file_scan_depth))
+        .filter_entry(move |entry| {
+            let path_buf = entry.path();
+            let Some(path_str) = path_buf.to_str() else {
+                return false;
+            };
+
+            if path_str == root_path {
+                return true;
+            }
+
+            if should_exclude_path(path_str, &exclude_paths) {
+                return false;
+            }
+
+            let Some(name) = path_buf.file_name().and_then(|value| value.to_str()) else {
+                return false;
+            };
+
+            if name.starts_with('.') {
+                return false;
+            }
+
+            if entry
+                .file_type()
+                .map(|file_type| file_type.is_dir())
+                .unwrap_or(false)
+                && (name.ends_with(".app") || should_skip_dir(name, &skip_dir_names))
+            {
+                return false;
+            }
+
+            true
+        });
 
     for entry in walker.build().flatten() {
         if *file_count >= config.file_scan_limit {
@@ -44,21 +80,14 @@ fn walk_files(
         let Some(path_str) = path_buf.to_str() else {
             continue;
         };
-        if path_str == path || should_exclude_path(path_str, &config.file_exclude_paths) {
+        if path_str == path {
             continue;
         }
 
         let Some(name) = path_buf.file_name().and_then(|s| s.to_str()) else {
             continue;
         };
-        if name.starts_with('.') {
-            continue;
-        }
-
         if path_buf.is_dir() {
-            if name.ends_with(".app") || should_skip_dir(name, &config.skip_dir_names) {
-                continue;
-            }
             let key = format!("{FOLDER_CANDIDATE_ID_PREFIX}{}", path_str.to_lowercase());
             let mut candidate = Candidate::new(&key, CandidateKind::Folder, name, path_str);
             candidate.subtitle = Some(CandidateKind::Folder.as_str().into());

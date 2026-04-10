@@ -151,7 +151,7 @@ This includes:
 
 If results look stale or missing after config/indexing changes:
 
-- press `Cmd+Shift+;` to reload config and refresh backend index
+- if you edited `~/.look.config` directly, press `Cmd+Shift+;` to reload config and refresh backend index
 - check `file_scan_roots`, `file_scan_depth`, and `file_scan_limit` in `~/.look.config`
 
 Path-style query is supported directly in normal search:
@@ -306,8 +306,11 @@ Troubleshooting first-run launch block (Gatekeeper):
 
 Other settings UX:
 
-- **Save Config** writes current UI values back into `~/.look.config`
+- **Save Config** writes current UI values back into `~/.look.config` and applies backend changes immediately
 - font name field supports installed-font suggestions in a dropdown
+- indexing depth/limit fields accept direct numeric typing (validated on submit/save)
+- Advanced -> Skip Folders uses exact folder paths with removable tags (x)
+- press `Escape` to close settings quickly
 
 Background image modes:
 
@@ -321,7 +324,7 @@ You can also configure backend indexing behavior with a user config file:
 - path: `~/.look.config`
 - optional override path: `LOOK_CONFIG_PATH=/path/to/custom.config`
 - first launch creates this file automatically with defaults if it does not exist
-- live reload: press `Cmd+Shift+;` after editing the file
+- live reload: press `Cmd+Shift+;` after editing the file directly
 
 Local dev run note (repository `make app-run`):
 
@@ -344,7 +347,7 @@ Backend indexing keys:
 - `translate_allow_network`: allow network translation requests (`true`/`false`); default: `false`
 - `backend_log_level`: backend log verbosity (`error`/`info`/`debug`); default: `error`
 - `launch_at_login`: auto-start look after user sign-in (`true`/`false`); default: `true`
-- `skip_dir_names`: comma-separated directory names to ignore during file scan (case-insensitive); default: `node_modules,target,build,dist,library,applications,old firefox data`
+- `skip_dir_names`: comma-separated directory names to ignore during file scan (case-insensitive); default: `node_modules,target,build,dist,library,applications,old firefox data,deriveddata,pods,vendor,out,coverage,tmp,cache,venv`
 
 UI keys:
 
@@ -394,7 +397,7 @@ file_exclude_paths=
 translate_allow_network=false
 backend_log_level=error
 launch_at_login=true
-skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data
+skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data,deriveddata,pods,vendor,out,coverage,tmp,cache,venv
 
 # UI theme
 ui_tint_red=0.08
@@ -438,6 +441,7 @@ ui_border_opacity=0.12
 - `Cmd+Option+Q`: quit app
 - `Cmd+Shift+,`: open/close settings panel
 - `Cmd+Shift+;`: reload `.look.config`
+- `Escape` (while settings open): close settings and return focus to launcher input
 - `Cmd+-`: zoom out (temporary UI scale)
 - `Cmd+=` (`Cmd++`): zoom in (temporary UI scale)
 - `Cmd+0`: reset temporary UI scale

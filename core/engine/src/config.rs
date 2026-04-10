@@ -42,7 +42,7 @@ pub const QUERY_SETTINGS_HINTS: [&str; 6] = [
     "sound",
 ];
 
-pub const SKIP_DIR_NAMES: [&str; 7] = [
+pub const SKIP_DIR_NAMES: [&str; 15] = [
     "node_modules",
     "target",
     "build",
@@ -50,6 +50,14 @@ pub const SKIP_DIR_NAMES: [&str; 7] = [
     "library",
     "applications",
     "old firefox data",
+    "deriveddata",
+    "pods",
+    "vendor",
+    "out",
+    "coverage",
+    "tmp",
+    "cache",
+    "venv",
 ];
 
 #[derive(Clone, Debug)]
@@ -179,7 +187,15 @@ impl RuntimeConfig {
                         .map(|entry| entry.to_lowercase())
                         .collect::<Vec<_>>();
                     if !parsed.is_empty() {
-                        self.skip_dir_names = parsed;
+                        for entry in parsed {
+                            if !self
+                                .skip_dir_names
+                                .iter()
+                                .any(|existing| existing == &entry)
+                            {
+                                self.skip_dir_names.push(entry);
+                            }
+                        }
                     }
                 }
                 _ => {}
@@ -222,7 +238,7 @@ file_scan_roots=Desktop,Documents,Downloads\n\
 file_scan_depth=4\n\
 file_scan_limit=8000\n\
 file_exclude_paths=\n\
-skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data\n\
+skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data,deriveddata,pods,vendor,out,coverage,tmp,cache,venv\n\
 \n\
 # UI theme\n\
 ui_tint_red=0.08\n\
@@ -336,5 +352,32 @@ mod tests {
                 |root| root == &"/System/Library/CoreServices/Finder.app/Contents/Applications"
             )
         );
+    }
+
+    #[test]
+    fn skip_dir_names_from_config_are_appended_not_replaced() {
+        let tmp = std::env::temp_dir().join(format!(
+            "look-config-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system time should be after epoch")
+                .as_nanos()
+        ));
+
+        std::fs::write(&tmp, "skip_dir_names=vendor\n").expect("should write temporary config");
+
+        let mut config = RuntimeConfig::default();
+        config.apply_from_file(&tmp);
+
+        assert!(
+            config
+                .skip_dir_names
+                .iter()
+                .any(|name| name == "node_modules")
+        );
+        assert!(config.skip_dir_names.iter().any(|name| name == "vendor"));
+
+        let _ = std::fs::remove_file(&tmp);
     }
 }

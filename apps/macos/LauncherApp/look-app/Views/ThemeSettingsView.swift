@@ -15,6 +15,8 @@ struct ThemeSettingsView: View {
     @State private var fontSuggestions: [String] = []
     @State private var showsFontSuggestions = false
     @State private var isPickingFontSuggestion = false
+    @State private var fileScanDepthInput = ""
+    @State private var fileScanLimitInput = ""
     @FocusState private var focusedField: Field?
 
     var body: some View {
@@ -34,8 +36,13 @@ struct ThemeSettingsView: View {
                 }
 
                 Button("Save Config") {
+                    applyFileScanDepthInput()
+                    applyFileScanLimitInput()
                     let ok = themeStore.saveCurrentConfigToFile()
                     saveMessage = ok ? "Saved" : "Save failed"
+                    if ok {
+                        NotificationCenter.default.post(name: .lookReloadConfigRequested, object: nil)
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
                         saveMessage = nil
                     }
@@ -48,7 +55,7 @@ struct ThemeSettingsView: View {
                     NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
                 }
                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                Text("Cmd+Shift+, to close")
+                Text("Esc or Cmd+Shift+, to close")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                     .foregroundStyle(.secondary)
             }
@@ -70,6 +77,10 @@ struct ThemeSettingsView: View {
             }
             .frame(maxHeight: .infinity, alignment: .top)
 
+        }
+        .onExitCommand {
+            appUIState.showsThemeSettings = false
+            NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
         }
     }
 
@@ -324,12 +335,13 @@ struct ThemeSettingsView: View {
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                             .foregroundStyle(.secondary)
 
-                        Stepper(value: $settings.fileScanDepth, in: 1...12) {
-                            Text("\(settings.fileScanDepth)")
-                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                                .frame(width: 50, alignment: .leading)
-                        }
-                        .frame(width: 190, alignment: .leading)
+                        TextField("4", text: $fileScanDepthInput)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80, alignment: .leading)
+                            .onChange(of: fileScanDepthInput) { _, value in
+                                fileScanDepthInput = sanitizedNumericInput(value)
+                            }
+                            .onSubmit { applyFileScanDepthInput() }
 
                         Text("How many directory levels to index")
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
@@ -344,18 +356,64 @@ struct ThemeSettingsView: View {
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                             .foregroundStyle(.secondary)
 
-                        Stepper(value: $settings.fileScanLimit, in: 500...50000, step: 500) {
-                            Text("\(settings.fileScanLimit)")
-                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                                .frame(width: 70, alignment: .leading)
-                        }
-                        .frame(width: 220, alignment: .leading)
+                        TextField("8000", text: $fileScanLimitInput)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 100, alignment: .leading)
+                            .onChange(of: fileScanLimitInput) { _, value in
+                                fileScanLimitInput = sanitizedNumericInput(value)
+                            }
+                            .onSubmit { applyFileScanLimitInput() }
 
                         Text("Max files indexed per refresh")
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
                             .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("Skip Folders")
+                            .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
+                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            .foregroundStyle(.secondary)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button("Add Folder") {
+                                selectExcludedFolderPath()
+                            }
+
+                            if themeStore.excludedFolderPaths.isEmpty {
+                                Text("No excluded folder paths yet")
+                                    .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            } else {
+                                ScrollView(.horizontal) {
+                                    HStack(spacing: 8) {
+                                        ForEach(themeStore.excludedFolderPaths, id: \.self) { path in
+                                            HStack(spacing: 6) {
+                                                Text(path)
+                                                    .lineLimit(1)
+                                                Button {
+                                                    themeStore.removeExcludedFolderPath(path)
+                                                } label: {
+                                                    Image(systemName: "xmark")
+                                                        .font(.system(size: 10, weight: .semibold))
+                                                }
+                                                .buttonStyle(.plain)
+                                            }
+                                            .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.78))
+                                            .padding(.horizontal, 9)
+                                            .padding(.vertical, 5)
+                                            .background(.white.opacity(0.12), in: Capsule())
+                                        }
+                                    }
+                                }
+                                .scrollIndicators(.hidden)
+                            }
+
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     Divider()
@@ -408,6 +466,13 @@ struct ThemeSettingsView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .onAppear { syncIndexingInputsFromSettings() }
+            .onChange(of: settings.fileScanDepth) { _, _ in
+                fileScanDepthInput = String(settings.fileScanDepth)
+            }
+            .onChange(of: settings.fileScanLimit) { _, _ in
+                fileScanLimitInput = String(settings.fileScanLimit)
+            }
 
             Spacer(minLength: 0)
 
@@ -446,6 +511,43 @@ struct ThemeSettingsView: View {
         if panel.runModal() == .OK {
             themeStore.setBackgroundImage(url: panel.url)
         }
+    }
+
+    private func selectExcludedFolderPath() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        if panel.runModal() == .OK, let url = panel.url {
+            themeStore.addExcludedFolderPath(url: url)
+        }
+    }
+
+    private func syncIndexingInputsFromSettings() {
+        fileScanDepthInput = String(settings.fileScanDepth)
+        fileScanLimitInput = String(settings.fileScanLimit)
+    }
+
+    private func sanitizedNumericInput(_ value: String) -> String {
+        String(value.filter(\.isNumber))
+    }
+
+    private func applyFileScanDepthInput() {
+        guard let parsed = Int(fileScanDepthInput), parsed > 0 else {
+            fileScanDepthInput = String(settings.fileScanDepth)
+            return
+        }
+        settings.fileScanDepth = min(max(1, parsed), 12)
+        fileScanDepthInput = String(settings.fileScanDepth)
+    }
+
+    private func applyFileScanLimitInput() {
+        guard let parsed = Int(fileScanLimitInput), parsed > 0 else {
+            fileScanLimitInput = String(settings.fileScanLimit)
+            return
+        }
+        settings.fileScanLimit = min(max(500, parsed), 50_000)
+        fileScanLimitInput = String(settings.fileScanLimit)
     }
 }
 
@@ -558,6 +660,11 @@ private struct LabeledSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
 
+    private var valueColumnWidth: CGFloat {
+        let scaledFontSize = CGFloat(themeStore.settings.fontSize) * themeStore.uiScale
+        return max(42, scaledFontSize * 2.3 + 14)
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Text(title)
@@ -569,7 +676,9 @@ private struct LabeledSlider: View {
                 .tint(themeStore.fontColor(opacityMultiplier: 0.92))
             Text(value, format: .number.precision(.fractionLength(2)))
                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-                .frame(width: 42, alignment: .trailing)
+                .monospacedDigit()
+                .lineLimit(1)
+                .frame(width: valueColumnWidth, alignment: .trailing)
                 .foregroundStyle(.secondary)
         }
     }

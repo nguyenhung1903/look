@@ -20,21 +20,46 @@ const CURL_ARGS_PREFIX: [&str; 9] = [
     "--compressed",
 ];
 
-const ERROR_EMPTY_TEXT: &str = "empty_text";
-const ERROR_REQUEST_FAILED: &str = "translate_request_failed";
-const ERROR_DECODE_FAILED: &str = "translate_decode_failed";
-const ERROR_EXEC_FAILED: &str = "translate_exec_failed";
-const ERROR_PARSE_FAILED: &str = "translate_parse_failed";
-const ERROR_EMPTY_RESULT: &str = "translate_empty_result";
+#[derive(Clone, Copy)]
+enum TranslateError {
+    EmptyText,
+    InvalidTargetLang,
+    RequestFailed,
+    DecodeFailed,
+    ExecFailed,
+    ParseFailed,
+    EmptyResult,
+    SerializeFailed,
+}
 
-const MESSAGE_EMPTY_TEXT: &str = "Type text after t\" to translate";
-const MESSAGE_REQUEST_FAILED: &str = "Translation request failed";
-const MESSAGE_DECODE_FAILED: &str = "Translation response decode failed";
-const MESSAGE_EXEC_FAILED: &str = "Translation command execution failed";
-const MESSAGE_PARSE_FAILED: &str = "Translation response parse failed";
-const MESSAGE_EMPTY_RESULT: &str = "Translation returned empty result";
+impl TranslateError {
+    fn code(self) -> &'static str {
+        match self {
+            Self::EmptyText => "empty_text",
+            Self::InvalidTargetLang => "invalid_target_lang",
+            Self::RequestFailed => "translate_request_failed",
+            Self::DecodeFailed => "translate_decode_failed",
+            Self::ExecFailed => "translate_exec_failed",
+            Self::ParseFailed => "translate_parse_failed",
+            Self::EmptyResult => "translate_empty_result",
+            Self::SerializeFailed => "serialize_failed",
+        }
+    }
 
-const JSON_ERROR_FALLBACK: &str = "{\"error\":\"json error\"}";
+    fn message(self) -> &'static str {
+        match self {
+            Self::EmptyText => "Type text after t\" to translate",
+            Self::InvalidTargetLang => "Invalid target language code",
+            Self::RequestFailed => "Translation request failed",
+            Self::DecodeFailed => "Translation response decode failed",
+            Self::ExecFailed => "Translation command execution failed",
+            Self::ParseFailed => "Translation response parse failed",
+            Self::EmptyResult => "Translation returned empty result",
+            Self::SerializeFailed => "Failed to serialize translation response",
+        }
+    }
+}
+
 const JSON_TRANSLATE_ERROR_FALLBACK: &str = "{\"original\":\"\",\"translated\":\"\",\"error\":{\"code\":\"unknown\",\"message\":\"Unknown translation error\"}}";
 
 #[derive(serde::Deserialize)]
@@ -48,11 +73,11 @@ pub(crate) fn look_translate_json_impl(
     let target_lang = cstr_to_string(target_lang);
 
     if text.trim().is_empty() {
-        return translate_error_json(&text, ERROR_EMPTY_TEXT, MESSAGE_EMPTY_TEXT);
+        return translate_error_json(&text, TranslateError::EmptyText);
     }
 
     if !is_valid_lang_code(&target_lang) {
-        return translate_error_json(&text, "invalid_target_lang", "Invalid target language code");
+        return translate_error_json(&text, TranslateError::InvalidTargetLang);
     }
 
     let encoded_text = percent_encode(&text);
@@ -75,30 +100,30 @@ pub(crate) fn look_translate_json_impl(
     let body = match output {
         Ok(out) => {
             if !out.status.success() {
-                return translate_error_json(&text, ERROR_REQUEST_FAILED, MESSAGE_REQUEST_FAILED);
+                return translate_error_json(&text, TranslateError::RequestFailed);
             }
             match String::from_utf8(out.stdout) {
                 Ok(s) => s,
                 Err(_) => {
-                    return translate_error_json(&text, ERROR_DECODE_FAILED, MESSAGE_DECODE_FAILED);
+                    return translate_error_json(&text, TranslateError::DecodeFailed);
                 }
             }
         }
         Err(_) => {
-            return translate_error_json(&text, ERROR_EXEC_FAILED, MESSAGE_EXEC_FAILED);
+            return translate_error_json(&text, TranslateError::ExecFailed);
         }
     };
 
     let parsed: TranslateResponse = match serde_json::from_str(&body) {
         Ok(p) => p,
         Err(_) => {
-            return translate_error_json(&text, ERROR_PARSE_FAILED, MESSAGE_PARSE_FAILED);
+            return translate_error_json(&text, TranslateError::ParseFailed);
         }
     };
 
     let translated = parse_translate_response(&parsed.0);
     if translated.trim().is_empty() {
-        return translate_error_json(&text, ERROR_EMPTY_RESULT, MESSAGE_EMPTY_RESULT);
+        return translate_error_json(&text, TranslateError::EmptyResult);
     }
 
     let result = serde_json::json!({
@@ -107,24 +132,28 @@ pub(crate) fn look_translate_json_impl(
         "error": null
     });
 
-    let json = serde_json::to_string(&result).unwrap_or_else(|_| JSON_ERROR_FALLBACK.to_string());
+    let json = serde_json::to_string(&result)
+        .unwrap_or_else(|_| translate_error_string("", TranslateError::SerializeFailed));
     let cstring = CString::new(json).expect("valid json");
     store_json_allocation(cstring)
 }
 
-fn translate_error_json(text: &str, code: &'static str, message: &str) -> *mut c_char {
+fn translate_error_json(text: &str, err: TranslateError) -> *mut c_char {
+    let json = translate_error_string(text, err);
+    let cstring = CString::new(json).expect("valid json");
+    store_json_allocation(cstring)
+}
+
+fn translate_error_string(text: &str, err: TranslateError) -> String {
     let payload = serde_json::json!({
         "original": text,
         "translated": "",
         "error": {
-            "code": code,
-            "message": message,
+            "code": err.code(),
+            "message": err.message(),
         }
     });
-    let json = serde_json::to_string(&payload)
-        .unwrap_or_else(|_| JSON_TRANSLATE_ERROR_FALLBACK.to_string());
-    let cstring = CString::new(json).expect("valid json");
-    store_json_allocation(cstring)
+    serde_json::to_string(&payload).unwrap_or_else(|_| JSON_TRANSLATE_ERROR_FALLBACK.to_string())
 }
 
 fn parse_translate_response(value: &serde_json::Value) -> String {
