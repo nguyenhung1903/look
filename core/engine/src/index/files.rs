@@ -43,7 +43,11 @@ fn walk_files(
                 return false;
             };
 
-            if path_str != root_path && should_exclude_path(path_str, &exclude_paths) {
+            if path_str == root_path {
+                return true;
+            }
+
+            if should_exclude_path(path_str, &exclude_paths) {
                 return false;
             }
 

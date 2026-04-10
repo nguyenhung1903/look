@@ -420,7 +420,23 @@ final class ThemeStore: ObservableObject {
         if trimmed.isEmpty {
             return ""
         }
-        return URL(fileURLWithPath: trimmed).standardizedFileURL.path
+        let expanded = expandConfigLikePath(trimmed)
+        return URL(fileURLWithPath: expanded).standardizedFileURL.path
+    }
+
+    private func expandConfigLikePath(_ value: String) -> String {
+        let home = NSHomeDirectory()
+        if value == "~" {
+            return home
+        }
+        if value.hasPrefix("~/") {
+            let relative = value.dropFirst(2)
+            return home + "/" + relative
+        }
+        if value.hasPrefix("/") {
+            return value
+        }
+        return home + "/" + value
     }
 
     private func resolveUsableFontName(_ input: String) -> String? {
