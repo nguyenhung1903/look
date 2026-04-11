@@ -89,6 +89,7 @@ Open settings with `Cmd+Shift+,`.
 Main controls include:
 
 - appearance (tint, blur, font, border, background)
+- settings-only blur multiplier (`Settings Blur`) for readability when settings is open
 - indexing scope/depth/limits
 - translation privacy and backend log level
 - launch at login
@@ -107,6 +108,8 @@ Backend-related keys:
 - `translate_allow_network`, `backend_log_level`, `launch_at_login`
 
 UI-related keys include the `ui_*` group (tint/blur/font/border values).
+
+Note: `Settings Blur` is stored as local app UI state (UserDefaults) and is not written to `~/.look.config`.
 
 ## 7) Keyboard shortcuts (quick reference)
 

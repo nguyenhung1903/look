@@ -1442,7 +1442,9 @@ struct LauncherView: View {
                     1,
                     max(
                         0,
-                        themeStore.settings.blurOpacity * themeStore.settings.blurMaterial.blurOpacityScale
+                        themeStore.settings.blurOpacity
+                            * themeStore.settings.blurMaterial.blurOpacityScale
+                            * (appUIState.showsThemeSettings ? appUIState.settingsBlurMultiplier : 1.0)
                     )
                 )
             )

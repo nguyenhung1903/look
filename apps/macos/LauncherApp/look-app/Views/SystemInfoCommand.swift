@@ -26,16 +26,16 @@ struct SystemInfoView: View {
                     } else if item.label.isEmpty {
                         Text(item.value)
                             .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), design: .monospaced))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.85))
+                            .foregroundStyle(themeStore.secondaryTextColor())
                     } else {
                         HStack(alignment: .top, spacing: 4) {
                             Text(item.label)
                                 .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), design: .monospaced))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                                .foregroundStyle(themeStore.mutedTextColor())
                                 .frame(minWidth: 70, alignment: .leading)
                             Text(item.value)
                                 .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), design: .monospaced))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.9))
+                                .foregroundStyle(themeStore.secondaryTextColor())
                         }
                     }
                 }

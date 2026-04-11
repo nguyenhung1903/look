@@ -57,7 +57,7 @@ struct ThemeSettingsView: View {
                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                 Text("Esc or Cmd+Shift+, to close")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(themeStore.mutedTextColor())
             }
 
             HStack(spacing: 8) {
@@ -89,7 +89,7 @@ struct ThemeSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Tint Color")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(themeStore.secondaryTextColor())
 
                 LabeledSlider(title: "Red", value: $settings.tintRed, range: 0...1)
                 LabeledSlider(title: "Green", value: $settings.tintGreen, range: 0...1)
@@ -97,25 +97,27 @@ struct ThemeSettingsView: View {
                 LabeledSlider(title: "Tint Opacity", value: $settings.tintOpacity, range: 0...1)
 
                 LabeledSlider(title: "Blur Opacity", value: $settings.blurOpacity, range: 0...1)
+                LabeledSlider(title: "Settings Blur", value: $appUIState.settingsBlurMultiplier, range: 0.4...1)
 
                 HStack(spacing: 10) {
                     Text("Font Name")
                         .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                        .foregroundStyle(themeStore.secondaryTextColor())
 
                     TextField("SF Pro Text", text: $settings.fontName)
                         .textFieldStyle(.roundedBorder)
                         .focused($focusedField, equals: .fontName)
                         .onTapGesture {
                             focusedField = .fontName
+                            fontSuggestions = themeStore.fontNameSuggestions(for: settings.fontName, limit: 24)
                             showsFontSuggestions = true
                         }
                         .onChange(of: settings.fontName) { _, newValue in
                             if isPickingFontSuggestion {
                                 return
                             }
-                            fontSuggestions = themeStore.fontNameSuggestions(for: newValue, limit: 120)
+                            fontSuggestions = themeStore.fontNameSuggestions(for: newValue, limit: 24)
                             showsFontSuggestions = focusedField == .fontName
                         }
                         .onSubmit {
@@ -133,7 +135,7 @@ struct ThemeSettingsView: View {
 
                     Text("Installed font name")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                        .foregroundStyle(themeStore.mutedTextColor())
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -149,7 +151,7 @@ struct ThemeSettingsView: View {
 
                 Text("Font Color")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
 
                 LabeledSlider(title: "Text Red", value: $settings.fontRed, range: 0...1)
                 LabeledSlider(title: "Text Green", value: $settings.fontGreen, range: 0...1)
@@ -158,7 +160,7 @@ struct ThemeSettingsView: View {
 
                 Text("Border")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
 
                 LabeledSlider(title: "Border Thick", value: $settings.borderThickness, range: 0...6)
                 LabeledSlider(title: "Border Red", value: $settings.borderRed, range: 0...1)
@@ -170,7 +172,7 @@ struct ThemeSettingsView: View {
                     Text("Blur Style")
                         .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(themeStore.secondaryTextColor())
 
                     Picker("Blur Style", selection: $settings.blurMaterial) {
                         ForEach(LauncherBlurMaterial.allCases) { item in
@@ -183,16 +185,13 @@ struct ThemeSettingsView: View {
 
                     Text(settings.blurMaterial.detail)
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                        .foregroundStyle(themeStore.mutedTextColor())
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .onAppear {
-                fontSuggestions = themeStore.fontNameSuggestions(for: settings.fontName, limit: 120)
-                DispatchQueue.main.async {
-                    focusedField = .fontName
-                }
+                focusedField = nil
             }
             .onChange(of: focusedField) { _, focused in
                 if focused != .fontName {
@@ -217,7 +216,7 @@ struct ThemeSettingsView: View {
         } label: {
             Text(title)
                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .medium))
-                .foregroundStyle(isActive ? themeStore.fontColor() : themeStore.fontColor(opacityMultiplier: 0.72))
+                .foregroundStyle(isActive ? themeStore.fontColor() : themeStore.secondaryTextColor())
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 7)
                 .background(
@@ -243,7 +242,7 @@ struct ThemeSettingsView: View {
                     Button {
                         isPickingFontSuggestion = true
                         settings.fontName = suggestion
-                        fontSuggestions = themeStore.fontNameSuggestions(for: suggestion, limit: 120)
+                        fontSuggestions = themeStore.fontNameSuggestions(for: suggestion, limit: 24)
                         showsFontSuggestions = false
                         DispatchQueue.main.async {
                             focusedField = .fontName
@@ -278,7 +277,7 @@ struct ThemeSettingsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Background")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                        .foregroundStyle(themeStore.secondaryTextColor())
 
                     HStack {
                         Button("Choose Background Image") {
@@ -293,14 +292,14 @@ struct ThemeSettingsView: View {
 
                     Text(settings.backgroundImagePath ?? "No image selected")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                        .foregroundStyle(themeStore.secondaryTextColor())
                         .lineLimit(1)
 
                     HStack(spacing: 10) {
                         Text("Image Layout")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(themeStore.secondaryTextColor())
 
                         Picker("Image Layout", selection: $settings.backgroundImageMode) {
                             ForEach(BackgroundImageMode.allCases) { mode in
@@ -313,7 +312,7 @@ struct ThemeSettingsView: View {
 
                         Text(settings.backgroundImageMode.detail)
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .foregroundStyle(themeStore.mutedTextColor())
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -327,13 +326,13 @@ struct ThemeSettingsView: View {
 
                     Text("Indexing")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                        .foregroundStyle(themeStore.secondaryTextColor())
 
                     HStack(spacing: 10) {
                         Text("File Scan Depth")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(themeStore.secondaryTextColor())
 
                         TextField("4", text: $fileScanDepthInput)
                             .textFieldStyle(.roundedBorder)
@@ -345,7 +344,7 @@ struct ThemeSettingsView: View {
 
                         Text("How many directory levels to index")
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .foregroundStyle(themeStore.mutedTextColor())
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -354,7 +353,7 @@ struct ThemeSettingsView: View {
                         Text("File Scan Limit")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(themeStore.secondaryTextColor())
 
                         TextField("8000", text: $fileScanLimitInput)
                             .textFieldStyle(.roundedBorder)
@@ -366,7 +365,7 @@ struct ThemeSettingsView: View {
 
                         Text("Max files indexed per refresh")
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .foregroundStyle(themeStore.mutedTextColor())
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -375,7 +374,7 @@ struct ThemeSettingsView: View {
                         Text("Skip Folders")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(themeStore.secondaryTextColor())
 
                         VStack(alignment: .leading, spacing: 8) {
                             Button("Add Folder") {
@@ -385,7 +384,7 @@ struct ThemeSettingsView: View {
                             if themeStore.excludedFolderPaths.isEmpty {
                                 Text("No excluded folder paths yet")
                                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                                    .foregroundStyle(themeStore.mutedTextColor())
                             } else {
                                 ScrollView(.horizontal) {
                                     HStack(spacing: 8) {
@@ -402,7 +401,7 @@ struct ThemeSettingsView: View {
                                                 .buttonStyle(.plain)
                                             }
                                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.78))
+                                            .foregroundStyle(themeStore.secondaryTextColor())
                                             .padding(.horizontal, 9)
                                             .padding(.vertical, 5)
                                             .background(.white.opacity(0.12), in: Capsule())
@@ -422,13 +421,13 @@ struct ThemeSettingsView: View {
 
                     Text("Privacy & Logs")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                        .foregroundStyle(themeStore.secondaryTextColor())
 
                     HStack(spacing: 10) {
                         Text("Backend Log Level")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(themeStore.secondaryTextColor())
 
                         Picker("Backend Log Level", selection: $settings.backendLogLevel) {
                             ForEach(BackendLogLevel.allCases) { level in
@@ -441,7 +440,7 @@ struct ThemeSettingsView: View {
 
                         Text("Error only by default; use Info/Debug for troubleshooting")
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                            .foregroundStyle(themeStore.mutedTextColor())
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -452,7 +451,7 @@ struct ThemeSettingsView: View {
 
                     Text("Startup")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                        .foregroundStyle(themeStore.secondaryTextColor())
 
                     Toggle(isOn: $settings.launchAtLogin) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -460,7 +459,7 @@ struct ThemeSettingsView: View {
                                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                             Text("Start look automatically when you sign in")
                                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                                .foregroundStyle(themeStore.mutedTextColor())
                         }
                     }
                 }
@@ -478,7 +477,7 @@ struct ThemeSettingsView: View {
 
             Text(HintText.Settings.advancedApply)
                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.64))
+                .foregroundStyle(themeStore.mutedTextColor())
         }
     }
 
@@ -491,11 +490,11 @@ struct ThemeSettingsView: View {
 
                 Text("This panel is intended as living documentation. We can add command and workflow docs here as features grow.")
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
 
                 Text(HintText.Settings.shortcutsTips)
                     .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
             }
             .padding(.top, 4)
         }
@@ -634,7 +633,7 @@ private struct ShortcutSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(themeStore.secondaryTextColor())
 
             ForEach(items) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -645,7 +644,7 @@ private struct ShortcutSection: View {
                         .background(.white.opacity(0.14), in: Capsule())
                     Text(item.action)
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(themeStore.secondaryTextColor())
                     Spacer(minLength: 0)
                 }
             }
@@ -670,7 +669,7 @@ private struct LabeledSlider: View {
             Text(title)
                 .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(themeStore.secondaryTextColor())
             Slider(value: $value, in: range)
                 .controlSize(.mini)
                 .tint(themeStore.fontColor(opacityMultiplier: 0.92))
@@ -679,7 +678,7 @@ private struct LabeledSlider: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .frame(width: valueColumnWidth, alignment: .trailing)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(themeStore.mutedTextColor())
         }
     }
 }

@@ -78,7 +78,7 @@ struct LauncherRowView: View {
                         .foregroundStyle(themeStore.fontColor())
                     Text(metaLabel)
                         .font(themeStore.uiFont(size: CGFloat(max(10, themeStore.settings.fontSize - 3)), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.65))
+                        .foregroundStyle(themeStore.mutedTextColor())
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)

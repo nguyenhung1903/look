@@ -23,6 +23,9 @@ final class ThemeStore: ObservableObject {
     @Published private(set) var excludedFolderPaths: [String] = []
 
     private let defaultsKey = "look.theme.settings"
+    private let cachedFontFamilies: [String] = NSFontManager.shared.availableFontFamilies.sorted {
+        $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+    }
     private var scopedBackgroundURL: URL?
 
     init() {
@@ -133,6 +136,14 @@ final class ThemeStore: ObservableObject {
         return Color(red: settings.fontRed, green: settings.fontGreen, blue: settings.fontBlue, opacity: alpha)
     }
 
+    func secondaryTextColor() -> Color {
+        fontColor(opacityMultiplier: 1.0)
+    }
+
+    func mutedTextColor() -> Color {
+        fontColor(opacityMultiplier: 0.8)
+    }
+
     func borderColor() -> Color {
         Color(
             red: settings.borderRed,
@@ -147,7 +158,7 @@ final class ThemeStore: ObservableObject {
     }
 
     func fontNameSuggestions(for input: String, limit: Int = 8) -> [String] {
-        let allFonts = NSFontManager.shared.availableFontFamilies.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let allFonts = cachedFontFamilies
         let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if query.isEmpty {
             return Array(allFonts.prefix(limit))

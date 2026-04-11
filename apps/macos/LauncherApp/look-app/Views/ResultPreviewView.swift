@@ -180,7 +180,7 @@ struct ResultPreviewView: View {
                         .foregroundStyle(themeStore.fontColor())
                     Text("Captured \(capturedAt)")
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.66))
+                        .foregroundStyle(themeStore.mutedTextColor())
                 }
                 Spacer()
 
@@ -203,15 +203,15 @@ struct ResultPreviewView: View {
                 KindBadge(kind: "clipboard")
                 Text("\(characterCount) chars")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
                 Text("\(lineCount) lines")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
             }
 
             Text("Preview")
                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .medium))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.62))
+                .foregroundStyle(themeStore.mutedTextColor())
 
             ScrollView {
                 Text(content)

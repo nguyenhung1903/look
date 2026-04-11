@@ -41,7 +41,7 @@ struct SearchInputBar: View {
                     .keyboardShortcut(.escape, modifiers: [.shift])
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
                     .buttonStyle(.plain)
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
             }
         }
         .padding(.horizontal, 12)
@@ -86,7 +86,7 @@ struct CommandListView: View {
                                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
                             Text(command.detail)
                                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                                .foregroundStyle(themeStore.secondaryTextColor())
                                 .lineLimit(1)
                         }
                         Spacer(minLength: 0)
@@ -149,7 +149,7 @@ struct HintBar: View {
     var body: some View {
         Text(hint)
             .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+            .foregroundStyle(themeStore.secondaryTextColor())
     }
 }
 
@@ -172,7 +172,7 @@ struct ClipboardEmptyStateView: View {
 
                 Text("Copy any text, then search with c\"word to find it here.")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
                     .lineLimit(2)
 
                 Spacer(minLength: 0)
@@ -191,7 +191,7 @@ struct ClipboardEmptyStateView: View {
                     .foregroundStyle(themeStore.fontColor())
                 Text("• Type c\" to list latest 10 clips\n• Type c\"mail to filter\n• Press Enter to copy selected item")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.72))
+                    .foregroundStyle(themeStore.secondaryTextColor())
                     .lineSpacing(4)
                 Spacer(minLength: 0)
             }
@@ -284,7 +284,7 @@ private struct ShortcutHelpSection: View {
                         .background(.white.opacity(0.14), in: Capsule())
                     Text(item.1)
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.82))
+                        .foregroundStyle(themeStore.mutedTextColor())
                     Spacer(minLength: 0)
                 }
             }
