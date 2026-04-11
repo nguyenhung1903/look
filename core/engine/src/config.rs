@@ -14,7 +14,11 @@ pub const APP_EXCLUDE_NAMES: [&str; 0] = [];
 
 pub const FILE_SCAN_ROOT_SUFFIXES: [&str; 3] = ["Desktop", "Documents", "Downloads"];
 pub const FILE_SCAN_DEPTH: usize = 4;
+pub const FILE_SCAN_DEPTH_MIN: usize = 1;
+pub const FILE_SCAN_DEPTH_MAX: usize = 12;
 pub const FILE_SCAN_LIMIT: usize = 8000;
+pub const FILE_SCAN_LIMIT_MIN: usize = 500;
+pub const FILE_SCAN_LIMIT_MAX: usize = 50_000;
 pub const FILE_EXCLUDE_PATHS: [&str; 0] = [];
 
 pub const SCORE_TITLE_CONTAINS: i64 = 1200;
@@ -167,12 +171,14 @@ impl RuntimeConfig {
                 }
                 "file_scan_depth" => {
                     if let Some(parsed) = parse_positive_usize(value) {
-                        self.file_scan_depth = parsed;
+                        self.file_scan_depth =
+                            parsed.clamp(FILE_SCAN_DEPTH_MIN, FILE_SCAN_DEPTH_MAX);
                     }
                 }
                 "file_scan_limit" => {
                     if let Some(parsed) = parse_positive_usize(value) {
-                        self.file_scan_limit = parsed;
+                        self.file_scan_limit =
+                            parsed.clamp(FILE_SCAN_LIMIT_MIN, FILE_SCAN_LIMIT_MAX);
                     }
                 }
                 "file_exclude_paths" => {
@@ -229,7 +235,7 @@ fn default_config_contents() -> &'static str {
     "# look configuration\n\
 # Generated on first launch. Edit values and press Cmd+Shift+; to reload.\n\
 \n\
-# Backend indexing\n\
+# Backend indexing (file_scan_depth: 1-12, file_scan_limit: 500-50000)\n\
 app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities,/System/Library/CoreServices/Finder.app/Contents/Applications\n\
 app_scan_depth=3\n\
 app_exclude_paths=\n\

@@ -50,7 +50,7 @@ struct LookupDefinitionPanelView: View {
                                 ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: Font.Weight.semibold)
                                 : .system(size: CGFloat(themeStore.settings.fontSize - 2), weight: Font.Weight.bold, design: .rounded)
                         )
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.45))
+                        .foregroundStyle(themeStore.mutedTextColor())
                 }
 
                 Spacer(minLength: 0)
@@ -60,14 +60,14 @@ struct LookupDefinitionPanelView: View {
                 } label: {
                     Image(systemName: "speaker.wave.2.fill")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.85))
+                        .foregroundStyle(themeStore.secondaryTextColor())
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 3)
             }
 
             Divider()
-                .overlay(.white.opacity(0.15))
+                .overlay(themeStore.dividerColor())
 
             ForEach(Array(definition.sections.enumerated()), id: \.offset) { _, section in
                 translationSection(section)
@@ -84,7 +84,7 @@ struct LookupDefinitionPanelView: View {
                             ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: Font.Weight.semibold)
                             : .system(size: CGFloat(themeStore.settings.fontSize - 1), weight: Font.Weight.bold, design: .serif)
                     )
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
+                    .foregroundStyle(themeStore.secondaryTextColor())
 
                 Spacer(minLength: 0)
 
@@ -94,7 +94,7 @@ struct LookupDefinitionPanelView: View {
                     } label: {
                         Image(systemName: "speaker.wave.1")
                             .font(.system(size: CGFloat(themeStore.settings.fontSize)))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.5))
+                            .foregroundStyle(themeStore.mutedTextColor())
                     }
                     .buttonStyle(.plain)
 
@@ -104,7 +104,7 @@ struct LookupDefinitionPanelView: View {
                         } label: {
                             Image(systemName: "doc.on.doc")
                                 .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.5))
+                                .foregroundStyle(themeStore.mutedTextColor())
                         }
                         .buttonStyle(.plain)
                     }
@@ -118,7 +118,7 @@ struct LookupDefinitionPanelView: View {
                             ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.regular)
                             : .system(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.regular, design: .serif)
                     )
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.92))
+                    .foregroundStyle(themeStore.secondaryTextColor())
                     .lineSpacing(CGFloat(themeStore.settings.fontSize * 0.15))
                     .textSelection(.enabled)
             } else if section.failed {
@@ -128,7 +128,7 @@ struct LookupDefinitionPanelView: View {
                             ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: Font.Weight.regular)
                             : .system(size: CGFloat(themeStore.settings.fontSize), weight: Font.Weight.regular, design: .serif)
                     )
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
+                    .foregroundStyle(themeStore.mutedTextColor())
             }
 
             if let presentation = section.dictionaryDefinition {
@@ -137,7 +137,7 @@ struct LookupDefinitionPanelView: View {
 
             if section.label != definition?.sections.last?.label {
                 Divider()
-                    .overlay(.white.opacity(0.07))
+                    .overlay(themeStore.dividerColor())
             }
         }
     }
@@ -156,10 +156,10 @@ struct LookupDefinitionPanelView: View {
             if let pos = entry.partOfSpeech {
                 Text(pos)
                     .font(.system(size: CGFloat(themeStore.settings.fontSize), weight: .semibold, design: .serif))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.75))
+                    .foregroundStyle(themeStore.secondaryTextColor())
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(themeStore.fontColor(opacityMultiplier: 0.1))
+                    .background(themeStore.controlFillColor())
                     .cornerRadius(4)
             }
 
@@ -174,12 +174,12 @@ struct LookupDefinitionPanelView: View {
             HStack(alignment: .top, spacing: 6) {
                 Text("\(sense.number).")
                     .font(.system(size: CGFloat(themeStore.settings.fontSize), weight: .semibold, design: .serif))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                    .foregroundStyle(themeStore.mutedTextColor())
                     .frame(width: 20, alignment: .trailing)
 
                 Text(sense.definition)
                     .font(.system(size: CGFloat(themeStore.settings.fontSize), design: .serif))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.85))
+                    .foregroundStyle(themeStore.secondaryTextColor())
                     .textSelection(.enabled)
             }
 
@@ -188,10 +188,10 @@ struct LookupDefinitionPanelView: View {
                     HStack(alignment: .top, spacing: 4) {
                         Text("•")
                             .font(.system(size: CGFloat(themeStore.settings.fontSize - 1)))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.5))
+                            .foregroundStyle(themeStore.mutedTextColor())
                         Text(example)
                             .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), design: .serif))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                            .foregroundStyle(themeStore.secondaryTextColor())
                             .italic()
                     }
                     .padding(.leading, 24)
@@ -203,12 +203,12 @@ struct LookupDefinitionPanelView: View {
                     if !sense.synonyms.isEmpty {
                         Text("Syn: \(sense.synonyms.joined(separator: ", "))")
                             .font(.system(size: CGFloat(themeStore.settings.fontSize - 2), design: .serif))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
+                            .foregroundStyle(themeStore.mutedTextColor())
                     }
                     if !sense.antonyms.isEmpty {
                         Text("Ant: \(sense.antonyms.joined(separator: ", "))")
                             .font(.system(size: CGFloat(themeStore.settings.fontSize - 2), design: .serif))
-                            .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
+                            .foregroundStyle(themeStore.mutedTextColor())
                     }
                 }
                 .padding(.leading, 24)
@@ -220,7 +220,7 @@ struct LookupDefinitionPanelView: View {
         VStack(spacing: 8) {
             Image(systemName: "globe")
                 .font(.system(size: 28))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.35))
+                .foregroundStyle(themeStore.mutedTextColor())
 
             if let emptyHint, !emptyHint.isEmpty {
                 Text(emptyHint)
@@ -229,7 +229,7 @@ struct LookupDefinitionPanelView: View {
                             ? themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.medium)
                             : .system(size: CGFloat(themeStore.settings.fontSize + 2), weight: Font.Weight.medium, design: .serif)
                     )
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.55))
+                    .foregroundStyle(themeStore.secondaryTextColor())
             }
         }
         .frame(maxWidth: .infinity)
@@ -261,10 +261,10 @@ struct LookupDefinitionPanelView: View {
                 Image(systemName: "arrow.up.forward")
                     .font(.system(size: 11, weight: .semibold))
             }
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(themeStore.accentColor())
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(Color.accentColor.opacity(0.1))
+            .background(themeStore.controlFillColor())
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
@@ -290,10 +290,10 @@ struct LookupDefinitionPanelView: View {
                 Image(systemName: "arrow.up.forward")
                     .font(.system(size: 11, weight: .semibold))
             }
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(themeStore.accentColor())
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(Color.accentColor.opacity(0.1))
+            .background(themeStore.controlFillColor())
             .cornerRadius(8)
         }
         .buttonStyle(.plain)

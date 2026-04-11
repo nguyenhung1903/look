@@ -12,7 +12,7 @@ struct SearchInputBar: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: isCommandMode ? "terminal" : "magnifyingglass")
-                .foregroundStyle(isCommandMode ? .green : .secondary)
+                .foregroundStyle(isCommandMode ? themeStore.accentColor() : themeStore.secondaryTextColor())
             TextField(
                 isCommandMode
                     ? (activeCommand?.placeholder ?? "Choose a command with Tab")
@@ -35,7 +35,7 @@ struct SearchInputBar: View {
                         .foregroundStyle(themeStore.fontColor())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(.green.opacity(0.18), in: Capsule())
+                        .background(themeStore.selectionFillColor(), in: Capsule())
                 }
                 Button("Exit") { onExitCommandMode() }
                     .keyboardShortcut(.escape, modifiers: [.shift])
@@ -46,7 +46,7 @@ struct SearchInputBar: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(themeStore.controlFillColor(), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -80,7 +80,7 @@ struct CommandListView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "terminal")
                             .frame(width: 18, height: 18)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(themeStore.accentColor())
                         VStack(alignment: .leading, spacing: 1) {
                             Text("/\(command.title)")
                                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .semibold))
@@ -95,7 +95,7 @@ struct CommandListView: View {
                     .padding(.vertical, 6)
                     .background(
                         (selectedID == command.id || activeID == command.id)
-                            ? .green.opacity(0.20) : .white.opacity(0.08),
+                            ? themeStore.selectionFillColor() : themeStore.controlFillColor().opacity(0.75),
                         in: RoundedRectangle(cornerRadius: 6, style: .continuous)
                     )
                     .onTapGesture { onSelect(command.id) }
@@ -161,14 +161,14 @@ struct ClipboardEmptyStateView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
                     Image(systemName: "doc.on.clipboard")
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(themeStore.accentColor())
                     Text("Clipboard History")
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 1), weight: .semibold))
                 }
 
                 Text("No clipboard items yet")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .medium))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.88))
+                    .foregroundStyle(themeStore.secondaryTextColor())
 
                 Text("Copy any text, then search with c\"word to find it here.")
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
@@ -181,7 +181,7 @@ struct ClipboardEmptyStateView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             Rectangle()
-                .fill(.white.opacity(0.08))
+                .fill(themeStore.dividerColor())
                 .frame(width: 1)
                 .padding(.vertical, 4)
 
@@ -213,12 +213,12 @@ struct LauncherHelpScreenView: View {
                     Spacer()
                     Text(LauncherHelpContent.closeHint)
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                        .foregroundStyle(themeStore.mutedTextColor())
                 }
 
                 Text(LauncherHelpContent.subtitle)
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .regular))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.8))
+                    .foregroundStyle(themeStore.secondaryTextColor())
 
                 ShortcutHelpSection(title: "Main", items: LauncherHelpContent.mainShortcuts)
                 ShortcutHelpSection(title: "Query prefixes", items: LauncherHelpContent.queryModes)
@@ -273,7 +273,7 @@ private struct ShortcutHelpSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize), weight: .semibold))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.86))
+                .foregroundStyle(themeStore.secondaryTextColor())
 
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -281,7 +281,7 @@ private struct ShortcutHelpSection: View {
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(.white.opacity(0.14), in: Capsule())
+                        .background(themeStore.controlFillColor(), in: Capsule())
                     Text(item.1)
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular))
                         .foregroundStyle(themeStore.mutedTextColor())

@@ -19,6 +19,7 @@ Highlights:
 ## Quick navigation
 
 - [Installation](#installation)
+- [Themes](#ui)
 - [Current keyboard UX](#current-keyboard-ux)
 - [Quick start](#quick-start)
 - [Product scope](#product-scope)
@@ -72,6 +73,9 @@ Indexing config supports include roots plus exclude rules for both apps and file
 ```
 
 ## UI
+
+Customizable themes available (Settings > Appearance):
+- Catppuccin, Tokyo Night, Rose Pine, Gruvbox, Dracula, Kanagawa, Custom
 
 ![Look UI 1](assets/look-ui/1.png)
 

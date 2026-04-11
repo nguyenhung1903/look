@@ -17,6 +17,8 @@ struct ThemeSettingsView: View {
     @State private var isPickingFontSuggestion = false
     @State private var fileScanDepthInput = ""
     @State private var fileScanLimitInput = ""
+    @State private var fileScanDepthError: String?
+    @State private var fileScanLimitError: String?
     @FocusState private var focusedField: Field?
 
     var body: some View {
@@ -48,6 +50,8 @@ struct ThemeSettingsView: View {
                     }
                     NotificationCenter.default.post(name: .lookFocusSettingsInputRequested, object: nil)
                 }
+                .disabled(hasIndexingError)
+                .opacity(hasIndexingError ? 0.5 : 1)
                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
 
                 Button("Back to Launcher") {
@@ -339,8 +343,22 @@ struct ThemeSettingsView: View {
                             .frame(width: 80, alignment: .leading)
                             .onChange(of: fileScanDepthInput) { _, value in
                                 fileScanDepthInput = sanitizedNumericInput(value)
+                                if let parsed = Int(fileScanDepthInput) {
+                                    if parsed >= AppConstants.FileScan.minDepth && parsed <= AppConstants.FileScan.maxDepth {
+                                        settings.fileScanDepth = parsed
+                                        fileScanDepthError = nil
+                                    } else {
+                                        fileScanDepthError = "Must be \(AppConstants.FileScan.minDepth)-\(AppConstants.FileScan.maxDepth)"
+                                    }
+                                }
                             }
-                            .onSubmit { applyFileScanDepthInput() }
+                            .help("Valid: \(AppConstants.FileScan.minDepth)-\(AppConstants.FileScan.maxDepth)")
+
+                        if let error = fileScanDepthError {
+                            Text(error)
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                                .foregroundStyle(themeStore.dangerColor())
+                        }
 
                         Text("How many directory levels to index")
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
@@ -355,13 +373,26 @@ struct ThemeSettingsView: View {
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                             .foregroundStyle(themeStore.secondaryTextColor())
 
-                        TextField("8000", text: $fileScanLimitInput)
+                        TextField("4000", text: $fileScanLimitInput)
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 100, alignment: .leading)
                             .onChange(of: fileScanLimitInput) { _, value in
                                 fileScanLimitInput = sanitizedNumericInput(value)
+                                if let parsed = Int(fileScanLimitInput) {
+                                    if parsed >= AppConstants.FileScan.minLimit && parsed <= AppConstants.FileScan.maxLimit {
+                                        settings.fileScanLimit = parsed
+                                        fileScanLimitError = nil
+                                    } else {
+                                        fileScanLimitError = "Must be \(AppConstants.FileScan.minLimit)-\(AppConstants.FileScan.maxLimit)"
+                                    }
+                                }
                             }
-                            .onSubmit { applyFileScanLimitInput() }
+
+                        if let error = fileScanLimitError {
+                            Text(error)
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                                .foregroundStyle(themeStore.dangerColor())
+                        }
 
                         Text("Max files indexed per refresh")
                             .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
@@ -547,6 +578,10 @@ struct ThemeSettingsView: View {
         }
         settings.fileScanLimit = min(max(500, parsed), 50_000)
         fileScanLimitInput = String(settings.fileScanLimit)
+    }
+
+    private var hasIndexingError: Bool {
+        fileScanDepthError != nil || fileScanLimitError != nil
     }
 }
 

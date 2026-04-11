@@ -86,11 +86,42 @@ Behavior:
 
 Open settings with `Cmd+Shift+,`.
 
-Main controls include:
+### Appearance / Themes
 
-- appearance (tint, blur, font, border, background)
+The Appearance tab controls:
+
+- **Tint Color** - accent color for UI highlights (RGB + opacity)
+- **Blur** - blur material and opacity for the launcher window
+- **Font** - name and size for launcher text
+- **Font Color** - text color (RGB + opacity)
+- **Border** - border thickness and color
+
+Built-in theme presets are available:
+
+| Theme | Description |
+|-------|-------------|
+| Catppuccin | Warm pastels (Mocha variant) |
+| Tokyo Night | Dark with vibrant accents |
+| Rose Pine | Soft pink-tinted dark theme |
+| Gruvbox | Retro warm tones |
+| Dracula | Classic purple-accented dark |
+| Kanagawa | Japanese-inspired dark theme |
+| Custom | Your own colors derived from tint |
+
+Theme is saved as `ui_theme=<name>` in config.
+
+### Indexing Settings
+
+Default values:
+
+- **File Scan Depth**: 4 (range: 1-12)
+- **File Scan Limit**: 4000 (range: 500-50000)
+
+These control how deeply and how many files are indexed for search.
+
+### Other Settings
+
 - settings-only blur multiplier (`Settings Blur`) for readability when settings is open
-- indexing scope/depth/limits
 - translation privacy and backend log level
 - launch at login
 

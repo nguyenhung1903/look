@@ -14,6 +14,8 @@ Next:
 
 - [x] keep `.look.config` as canonical user settings source (no backend table migration for user-editable settings)
 - [x] finish open Milestone G reliability tasks (error model + user fallback messaging)
+- [x] config validation and reload feedback (Cmd+Shift+; shows warnings in orange banner)
+- [x] file_scan_depth/file_scan_limit validation (clamp 1-12 / 500-50000 in both Swift and Rust)
 
 Recently completed (current optimization cycle):
 
@@ -131,6 +133,15 @@ Reference: `docs/windows-port-plan.md`
 - [x] **App list preview**: 2-column layout with icon/name on left, info/preview on right (image preview, app info)
 - [x] **System info command**: Add `sys` command mode screen for model, memory, CPU usage, battery, uptime, and disk
 - [x] **Command list 2-column**: Make command list 2-column layout for better visibility
+- [x] **Theme presets foundation** ([#54](https://github.com/kunkka19xx/look/issues/54)): built-in theme preset system with Catppuccin, Tokyo Night, Rose Pine, Gruvbox, Dracula, Kanagawa; semantic colors auto-derive from main text in Custom mode; theme persisted to `ui_theme` config
+- [x] **Add preset: Catppuccin** ([#54](https://github.com/kunkka19xx/look/issues/54))
+- [x] **Add preset: Tokyo Night** ([#54](https://github.com/kunkka19xx/look/issues/54))
+- [x] **Add preset: Rose Pine** ([#54](https://github.com/kunkka19xx/look/issues/54))
+- [x] **Add preset: Gruvbox** ([#54](https://github.com/kunkka19xx/look/issues/54))
+- [x] **Add preset: Dracula** ([#54](https://github.com/kunkka19xx/look/issues/54))
+- [x] **Add preset: Kanagawa** ([#54](https://github.com/kunkka19xx/look/issues/54))
+- [x] **Config validation**: validate config file on reload (Cmd+Shift+;), show warnings for invalid values with orange banner + copy button; clamp file_scan_depth (1-12) and file_scan_limit (500-50000) in both Swift and Rust
+- [ ] **Theme codegen pipeline (future)**: define a shared theme token source and generate typed platform code at build time
 - [ ] **Homebrew release**: Package app for homebrew installation
 - [x] **Build script**: Create release build and curl installer script
 

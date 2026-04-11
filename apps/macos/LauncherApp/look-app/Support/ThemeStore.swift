@@ -50,10 +50,96 @@ final class ThemeStore: ObservableObject {
         applyThemeOverridesFromConfigFile()
     }
 
-    func reloadFromConfig() {
+    struct ConfigReloadResult {
+        let loadedTheme: String
+        let warnings: [String]
+    }
+
+    func reloadFromConfig() -> ConfigReloadResult {
         Self.ensureDefaultConfigFileExists(at: Self.configPath())
+
+        var warnings: [String] = []
+        let configPath = Self.configPath()
+
+        // First, scan raw config for invalid values before applying
+        if let raw = try? String(contentsOf: configPath, encoding: .utf8) {
+            for line in raw.split(whereSeparator: \ .isNewline) {
+                let stripped = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard stripped.firstIndex(of: "=") != nil else { continue }
+
+                let parts = stripped.split(separator: "=", maxSplits: 1)
+                guard parts.count == 2 else { continue }
+                let key = String(parts[0]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let value = String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+                switch key {
+                case "ui_tint_red", "ui_tint_green", "ui_tint_blue", "ui_tint_opacity", "ui_font_opacity", "ui_border_opacity":
+                    if let parsed = Double(value), parsed < 0 || parsed > 1 {
+                        warnings.append("\(key)=\(value) invalid (expected 0-1)")
+                    }
+                case "ui_font_size":
+                    if let parsed = Double(value), parsed <= 0 {
+                        warnings.append("\(key)=\(value) invalid (must be > 0)")
+                    }
+                case "file_scan_depth":
+                    if let parsed = Int(value), parsed < AppConstants.FileScan.minDepth || parsed > AppConstants.FileScan.maxDepth {
+                        warnings.append("\(key)=\(value) invalid (must be \(AppConstants.FileScan.minDepth)-\(AppConstants.FileScan.maxDepth))")
+                    }
+                case "file_scan_limit":
+                    if let parsed = Int(value), parsed < AppConstants.FileScan.minLimit || parsed > AppConstants.FileScan.maxLimit {
+                        warnings.append("\(key)=\(value) invalid (must be \(AppConstants.FileScan.minLimit)-\(AppConstants.FileScan.maxLimit))")
+                    }
+                case "ui_background_image":
+                    if !value.isEmpty {
+                        let url = URL(fileURLWithPath: value)
+                        if !FileManager.default.fileExists(atPath: url.path) {
+                            warnings.append("background image not found: \(value)")
+                        }
+                    }
+                case "ui_theme":
+                    if !value.isEmpty {
+                        let validThemes = ["catppuccin", "tokyoNight", "rosePine", "gruvbox", "dracula", "kanagawa"]
+                        if !validThemes.contains(value.lowercased()) {
+                            warnings.append("theme '\(value)' not found")
+                        }
+                    }
+                default:
+                    break
+                }
+            }
+        }
+
+        // Save original values before parsing
+        let originalTintRed = settings.tintRed
+        let originalTintGreen = settings.tintGreen
+        let originalTintBlue = settings.tintBlue
+        let originalTintOpacity = settings.tintOpacity
+        let originalFontSize = settings.fontSize
+
+        // Apply config
         applyThemeOverridesFromConfigFile()
+
+        // If any were invalid, reset to defaults
+        if warnings.contains(where: { $0.hasPrefix("ui_tint_red") }) {
+            settings.tintRed = originalTintRed
+        }
+        if warnings.contains(where: { $0.hasPrefix("ui_tint_green") }) {
+            settings.tintGreen = originalTintGreen
+        }
+        if warnings.contains(where: { $0.hasPrefix("ui_tint_blue") }) {
+            settings.tintBlue = originalTintBlue
+        }
+        if warnings.contains(where: { $0.hasPrefix("ui_tint_opacity") }) {
+            settings.tintOpacity = originalTintOpacity
+        }
+        if warnings.contains(where: { $0.hasPrefix("ui_font_size") }) {
+            settings.fontSize = originalFontSize
+        }
+
         _ = applyLaunchAtLoginSetting()
+
+        let resultTheme = detectBuiltinTheme(for: settings)
+        return ConfigReloadResult(loadedTheme: resultTheme.title, warnings: warnings)
     }
 
     func saveCurrentConfigToFile() -> Bool {
@@ -98,6 +184,17 @@ final class ThemeStore: ObservableObject {
         upsertConfigLine(&lines, key: "backend_log_level", value: settings.backendLogLevel.rawValue)
         upsertConfigLine(&lines, key: "launch_at_login", value: settings.launchAtLogin ? "true" : "false")
 
+        // Background image
+        if let bgPath = settings.backgroundImagePath, !bgPath.isEmpty {
+            upsertConfigLine(&lines, key: "ui_background_image", value: bgPath)
+            upsertConfigLine(&lines, key: "ui_background_image_mode", value: settings.backgroundImageMode.rawValue)
+            upsertConfigLine(&lines, key: "ui_background_image_opacity", value: String(format: "%.2f", settings.backgroundImageOpacity))
+            upsertConfigLine(&lines, key: "ui_background_image_blur", value: String(format: "%.1f", settings.backgroundImageBlur))
+        }
+
+        // Settings blur multiplier
+        upsertConfigLine(&lines, key: "settings_blur_multiplier", value: String(format: "%.2f", settings.settingsBlurMultiplier))
+
         let payload = lines.joined(separator: "\n") + "\n"
         do {
             try payload.write(to: path, atomically: true, encoding: .utf8)
@@ -129,32 +226,6 @@ final class ThemeStore: ObservableObject {
         }
 
         return .system(size: resolvedSize, weight: weight)
-    }
-
-    func fontColor(opacityMultiplier: Double = 1.0) -> Color {
-        let alpha = min(1, max(0, settings.fontOpacity * opacityMultiplier))
-        return Color(red: settings.fontRed, green: settings.fontGreen, blue: settings.fontBlue, opacity: alpha)
-    }
-
-    func secondaryTextColor() -> Color {
-        fontColor(opacityMultiplier: 1.0)
-    }
-
-    func mutedTextColor() -> Color {
-        fontColor(opacityMultiplier: 0.8)
-    }
-
-    func borderColor() -> Color {
-        Color(
-            red: settings.borderRed,
-            green: settings.borderGreen,
-            blue: settings.borderBlue,
-            opacity: settings.borderOpacity
-        )
-    }
-
-    func borderLineWidth() -> CGFloat {
-        CGFloat(max(0, settings.borderThickness))
     }
 
     func fontNameSuggestions(for input: String, limit: Int = 8) -> [String] {
@@ -219,6 +290,10 @@ final class ThemeStore: ObservableObject {
             return
         }
 
+        // Config file parsing with graceful fallback:
+        // Invalid values are silently ignored and default values are used instead.
+        // This ensures the app remains functional even with corrupted config.
+
         excludedFolderPaths = []
 
         for line in raw.split(whereSeparator: \ .isNewline) {
@@ -235,6 +310,8 @@ final class ThemeStore: ObservableObject {
             let value = stripped[stripped.index(after: splitPoint)...].trimmingCharacters(in: .whitespacesAndNewlines)
 
             switch key {
+            case "ui_theme":
+                settings.themeName = value
             case "ui_tint_red":
                 if let parsed = parseUnitDouble(value) {
                     settings.tintRed = parsed
@@ -320,6 +397,26 @@ final class ThemeStore: ObservableObject {
             case "launch_at_login":
                 if let parsed = parseBool(value) {
                     settings.launchAtLogin = parsed
+                }
+            case "ui_background_image":
+                if !value.isEmpty {
+                    settings.backgroundImagePath = value
+                }
+            case "ui_background_image_mode":
+                if let mode = BackgroundImageMode(rawValue: value.lowercased()) {
+                    settings.backgroundImageMode = mode
+                }
+            case "ui_background_image_opacity":
+                if let parsed = parseUnitDouble(value) {
+                    settings.backgroundImageOpacity = parsed
+                }
+            case "ui_background_image_blur":
+                if let parsed = parsePositiveDouble(value) {
+                    settings.backgroundImageBlur = parsed
+                }
+            case "settings_blur_multiplier":
+                if let parsed = parseUnitDouble(value) {
+                    settings.settingsBlurMultiplier = parsed
                 }
             default:
                 continue

@@ -86,13 +86,13 @@ struct LauncherRowView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(
-                isSelected ? .white.opacity(0.12) : .clear,
+                isSelected ? themeStore.selectionFillColor() : .clear,
                 in: RoundedRectangle(cornerRadius: 8, style: .continuous)
             )
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(.white.opacity(0.18), lineWidth: 1)
+                        .stroke(themeStore.dividerColor(), lineWidth: 1)
                 }
             }
             .contentShape(Rectangle())
@@ -101,7 +101,7 @@ struct LauncherRowView: View {
             }
 
             Rectangle()
-                .fill(.white.opacity(0.06))
+                .fill(themeStore.dividerColor().opacity(0.8))
                 .frame(height: 1)
                 .padding(.horizontal, 6)
         }

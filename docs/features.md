@@ -40,7 +40,10 @@ This document tracks what `look` supports today and what is planned next.
 - in-app settings panel (`Cmd+Shift+,`)
 - local config file `~/.look.config`
 - runtime reload (`Cmd+Shift+;`)
+- 7 built-in theme presets (Catppuccin, Tokyo Night, Rose Pine, Gruvbox, Dracula, Kanagawa, Custom)
+- semantic color system with auto-derived text colors in Custom mode
 - indexing, UI, privacy/logging, launch-at-login controls
+- immediate validation feedback for invalid settings input
 
 ### Backend and persistence
 

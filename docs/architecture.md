@@ -18,12 +18,13 @@ Key design goals:
 
 ```mermaid
 flowchart LR
-    User[User keyboard input] --> Hotkey[GlobalHotKeyManager Cmd+Space]
+    User[User keyboard input] --> Hotkey[GlobalHotKeyManager\nSupport/Launcher/ Cmd+Space]
     Hotkey --> App[SwiftUI macOS App\nlook_appApp / AppDelegate / LauncherView]
 
-    App --> Clipboard[ClipboardHistoryStore\nin-memory history]
+    App --> Clipboard[ClipboardHistoryStore\nSupport/Launcher/ in-memory history]
     App --> Theme[ThemeStore\n.look.config + UserDefaults]
-    App --> Bridge[EngineBridge.swift]
+    App --> Bridge[EngineBridge.swift\nSupport/Launcher/]
+    App --> Services[LauncherCommandService\nLauncherSearchCoordinator\nLauncherTranslationService\nLauncherWindowCoordinator]
 
     Bridge --> FFI[bridge/ffi\nC ABI]
     FFI --> Engine[core/engine\nQueryEngine]
@@ -41,7 +42,15 @@ flowchart LR
 
 ## 2) Module boundaries and responsibilities
 
-- `apps/macos`: launcher window, keyboard input, global hotkey, action dispatch, clipboard/history mode, command mode, theme/settings UX.
+- `apps/macos/LauncherApp/look-app`: launcher window, keyboard input, global hotkey, action dispatch, clipboard/history mode, command mode, theme/settings UX.
+- `Support/Launcher/`: launcher-specific services and utilities:
+  - `LauncherCommandService`: command execution (shell, calc, kill, sys)
+  - `LauncherSearchCoordinator`: debounce + async search lifecycle
+  - `LauncherTranslationService`: translation lookup
+  - `LauncherWindowCoordinator`: window/focus management
+  - `EngineBridge`: search engine communication
+  - `ClipboardHistoryStore`, `KeyboardSelectionMonitor`, `GlobalHotKeyManager`
+- `Themes/`: builtin theme presets (Catppuccin, Tokyo Night, Rose Pine, Gruvbox, Dracula, Kanagawa) and semantic color tokens
 - `bridge/ffi`: narrow C ABI surface for search, usage recording, config reload, translation, and error payloads.
 - `core/indexing`: candidate model and indexing helpers used by engine/storage flows.
 - `core/matching`: exact/prefix/fuzzy matching primitives.
@@ -274,6 +283,96 @@ Behavioral notes:
 - clipboard history mode is shell-side and in-memory for current session,
 - command mode supports `calc`, `shell`, `kill`, `sys`,
 - settings panel controls theme/index/runtime knobs and persists locally.
+
+---
+
+## 7) Theme System
+
+The theme system uses semantic color tokens for consistent theming across all built-in themes:
+
+### Color Hierarchy
+
+- **Main text (`fontColor`)**: Primary text color, user-configurable via font RGB sliders
+- **Secondary text (`secondaryTextColor`)**: Section headers, labels
+- **Muted text (`mutedTextColor`)**: Hints, subtitles, less important text
+- **Panel fill (`panelFillColor`)**: Input fields, panels
+- **Control fill (`controlFillColor`)**: Buttons, controls
+- **Divider (`dividerColor`)**: Borders, separators
+- **Selection (`selectionFillColor`)**: Selected item highlight
+- **Accent (`accentColor`)**: Links, interactive elements
+- **Success/Warning/Danger**: Semantic state colors
+
+### Text Color Derivation (Custom Mode)
+
+In "Custom" mode, semantic text colors auto-derive from main text color:
+- Secondary = 82% brightness of main text
+- Muted = 64% brightness of main text
+
+This ensures good contrast whether using light or dark themes.
+
+### Built-in Themes
+
+Available themes (selected via Settings > Appearance):
+| Theme | Description |
+|-------|-------------|
+| Catppuccin | Warm pastels (Mocha variant) |
+| Tokyo Night | Dark with vibrant accents |
+| Rose Pine | Soft pink-tinted dark theme |
+| Gruvbox | Retro warm tones |
+| Dracula | Classic purple-accented dark |
+| Kanagawa | Japanese-inspired dark theme |
+| Custom | Auto-derived semantic colors from tint |
+
+Themes are defined in `Themes/` folder:
+- `BuiltinThemeStyle`: Base style with all color tokens
+- `BuiltinThemePreset`: Dropdown selection enum
+- Individual theme files: `CatppuccinTheme.swift`, `TokyoNightTheme.swift`, etc.
+
+### Config File Integration
+
+All settings are persisted to `.look.config`:
+
+**UI Theme:**
+- `ui_theme` - theme name (catppuccin, tokyoNight, rosePine, gruvbox, dracula, kanagawa)
+
+**Appearance:**
+- `ui_tint_red`, `ui_tint_green`, `ui_tint_blue`, `ui_tint_opacity` - background tint (0-1)
+- `ui_blur_material` - blur style (hudWindow, sidebar, menu, underWindowBackground)
+- `ui_blur_opacity` - blur opacity (0-1)
+- `ui_font_name`, `ui_font_size` - font settings
+- `ui_font_red`, `ui_font_green`, `ui_font_blue`, `ui_font_opacity` - text color (0-1)
+- `ui_border_thickness`, `ui_border_red`, `ui_border_green`, `ui_border_blue`, `ui_border_opacity` - border
+
+**Background Image:**
+- `ui_background_image` - path to image file
+- `ui_background_image_mode` - fill, fit, tile, stretch
+- `ui_background_image_opacity` - overlay opacity (0-1)
+- `ui_background_image_blur` - blur radius
+
+**Settings:**
+- `settings_blur_multiplier` - settings panel blur (0-1)
+
+**File Scanning:**
+- `file_scan_depth` - max depth (1-12), default: 4
+- `file_scan_limit` - max files (500-50000), default: 4000
+- `file_exclude_paths` - comma-separated paths to exclude
+
+**Runtime:**
+- `backend_log_level` - error, info, debug
+- `launch_at_login` - true/false
+
+### Config Reload Validation
+
+When reloading (Cmd+Shift+;), invalid values are detected and shown:
+- Values outside valid range (e.g., opacity > 1)
+- Unknown theme names
+- Invalid numbers
+
+Warnings appear in banner with copy button for easy debugging.
+
+On startup, theme is loaded from config and applied.
+
+---
 
 Performance targets:
 

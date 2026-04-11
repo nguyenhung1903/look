@@ -66,18 +66,18 @@ struct KillCommandView: View {
                             Spacer()
                             Text("PID: \(app.processIdentifier)")
                                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                                .foregroundStyle(themeStore.mutedTextColor())
                             if selectedIndex == num {
                                 Text("→ Enter")
                                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(themeStore.accentColor())
                             }
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(
                             selectedIndex == num
-                                ? .white.opacity(0.12) : .clear,
+                                ? themeStore.selectionFillColor() : .clear,
                             in: RoundedRectangle(cornerRadius: 6, style: .continuous)
                         )
                     }
@@ -99,7 +99,7 @@ struct KillCommandView: View {
                         .foregroundStyle(themeStore.fontColor())
                     Text("PID: \(app.processIdentifier)")
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                        .foregroundStyle(themeStore.mutedTextColor())
                 }
                 Spacer()
                 Button {
@@ -107,10 +107,10 @@ struct KillCommandView: View {
                 } label: {
                     Text("Y / Yes")
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 1), weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(themeStore.onDangerColor())
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(.red, in: Capsule())
+                        .background(themeStore.dangerColor(), in: Capsule())
                 }
                 .buttonStyle(.plain)
                 Button {
@@ -121,12 +121,12 @@ struct KillCommandView: View {
                         .foregroundStyle(themeStore.fontColor())
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(.white.opacity(0.12), in: Capsule())
+                        .background(themeStore.controlFillColor(), in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
             .padding(10)
-            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(themeStore.controlFillColor().opacity(0.8), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
     }
 }

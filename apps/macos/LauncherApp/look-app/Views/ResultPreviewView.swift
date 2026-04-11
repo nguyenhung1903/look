@@ -116,7 +116,7 @@ struct ResultPreviewView: View {
                             KindBadge(kind: result.kind.rawValue)
                             Text(info.size)
                                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                                .foregroundStyle(themeStore.secondaryTextColor())
                         }
                     }
                     Spacer()
@@ -143,10 +143,10 @@ struct ResultPreviewView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Path")
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                        .foregroundStyle(themeStore.mutedTextColor())
                     Text(result.path)
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.7))
+                        .foregroundStyle(themeStore.secondaryTextColor())
                         .lineLimit(3)
                 }
 
@@ -173,7 +173,7 @@ struct ResultPreviewView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 34, height: 34)
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(themeStore.accentColor())
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Clipboard item")
                         .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize + 1), weight: .semibold))
@@ -192,10 +192,10 @@ struct ResultPreviewView: View {
                     }
                     .buttonStyle(.plain)
                     .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .semibold))
-                    .foregroundStyle(.red.opacity(0.95))
+                    .foregroundStyle(themeStore.dangerColor().opacity(0.95))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(.red.opacity(0.14), in: Capsule())
+                    .background(themeStore.dangerColor().opacity(0.16), in: Capsule())
                 }
             }
 
@@ -216,12 +216,12 @@ struct ResultPreviewView: View {
             ScrollView {
                 Text(content)
                     .font(.system(size: CGFloat(themeStore.settings.fontSize - 1), weight: .regular, design: .monospaced))
-                    .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.88))
+                    .foregroundStyle(themeStore.secondaryTextColor())
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                     .textSelection(.enabled)
                     .padding(10)
             }
-            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(themeStore.controlFillColor(), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             InfoRow(label: "Kind", value: "Clipboard")
             InfoRow(label: "Captured", value: capturedAt)
@@ -239,18 +239,29 @@ struct KindBadge: View {
 
     private var color: Color {
         switch kind {
-        case "app": return .blue
-        case "file": return .green
-        case "folder": return .orange
-        case "clipboard": return .teal
-        default: return .gray
+        case "app": return themeStore.accentColor()
+        case "file": return themeStore.successColor()
+        case "folder": return themeStore.warningColor()
+        case "clipboard": return themeStore.accentColor()
+        default: return themeStore.mutedTextColor()
+        }
+    }
+
+    private var foreground: Color {
+        switch kind {
+        case "file":
+            return themeStore.onSuccessColor()
+        case "folder":
+            return themeStore.onWarningColor()
+        default:
+            return themeStore.onAccentColor()
         }
     }
 
     var body: some View {
         Text(kind.capitalized)
             .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 3), weight: .medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(foreground)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(color.opacity(0.8), in: Capsule())
@@ -266,11 +277,11 @@ struct InfoRow: View {
         HStack {
             Text(label)
                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.6))
+                .foregroundStyle(themeStore.mutedTextColor())
             Spacer()
             Text(value)
                 .font(themeStore.uiFont(size: CGFloat(themeStore.settings.fontSize - 2), weight: .regular))
-                .foregroundStyle(themeStore.fontColor(opacityMultiplier: 0.8))
+                .foregroundStyle(themeStore.secondaryTextColor())
         }
     }
 }

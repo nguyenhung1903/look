@@ -98,4 +98,11 @@ enum AppConstants {
         static let labelWidth: CGFloat = 150
         static let pickerWidth: CGFloat = 140
     }
+
+    enum FileScan {
+        static let minDepth = 1
+        static let maxDepth = 12
+        static let minLimit = 500
+        static let maxLimit = 50_000
+    }
 }
