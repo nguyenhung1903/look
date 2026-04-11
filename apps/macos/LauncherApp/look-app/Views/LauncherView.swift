@@ -814,18 +814,28 @@ struct LauncherView: View {
         let result = themeStore.reloadFromConfig()
         let backendReloaded = bridge.reloadConfig()
 
+        // Sync settings blur multiplier to AppUIState
+        if let blurMultiplier = result.settingsBlurMultiplier {
+            appUIState.settingsBlurMultiplier = blurMultiplier
+        }
+
         var message = "Config reloaded"
+        var style: BannerStyle = .info
         var duration: Double = 2.0
         var copyText: String? = nil
 
-        if !result.warnings.isEmpty {
+        if !backendReloaded {
+            message = "Backend config reload failed"
+            style = .error
+            duration = 4.0
+        } else if !result.warnings.isEmpty {
             message = result.warnings.joined(separator: ", ")
+            style = .warning
             duration = 5.0
             copyText = result.warnings.joined(separator: "\n")
-            showBanner(message, style: .warning, copyText: copyText, duration: duration)
-        } else {
-            showBanner(message, copyText: copyText, duration: duration)
         }
+
+        showBanner(message, style: style, copyText: copyText, duration: duration)
         if isCommandMode {
             commandFeedback = message
         }

@@ -1,6 +1,6 @@
 import Foundation
 
-enum BuiltinThemePreset: String, CaseIterable, Identifiable {
+enum BuiltinThemePreset: String, CaseIterable, Identifiable, Codable {
     case custom
     case catppuccin
     case tokyoNight

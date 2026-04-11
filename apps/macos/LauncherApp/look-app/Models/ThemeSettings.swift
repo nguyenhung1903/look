@@ -118,6 +118,7 @@ struct ThemeSettings: Codable, Equatable {
     var borderOpacity: Double = 0.12
 
     var themeName: String = ""
+    var uiTheme: BuiltinThemePreset = .catppuccin
 
     // Background image
     var backgroundImagePath: String?

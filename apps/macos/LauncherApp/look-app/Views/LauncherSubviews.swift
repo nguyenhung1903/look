@@ -205,7 +205,7 @@ struct LauncherHelpScreenView: View {
     let themeStore: ThemeStore
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Text(LauncherHelpContent.title)
@@ -226,7 +226,6 @@ struct LauncherHelpScreenView: View {
             }
             .padding(12)
         }
-        .scrollIndicators(.hidden)
     }
 }
 

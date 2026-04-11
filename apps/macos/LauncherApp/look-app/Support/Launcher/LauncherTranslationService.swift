@@ -80,17 +80,17 @@ final class LauncherTranslationService {
 
     private func fetchLookupTranslations(for text: String) async -> (en: LookupTranslationResult, vi: LookupTranslationResult, ja: LookupTranslationResult) {
         await withTaskGroup(of: (String, LookupTranslationResult).self) { group in
-            group.addTask {
+            group.addTask { @MainActor in
                 let translated = self.bridge.translate(text: text, targetLang: "en")?.translated
                 let definition = translated.flatMap { DictionaryParser.parse(self.fetchRawDefinition(for: $0) ?? "") }
                 return ("en", LookupTranslationResult(translated: translated, dictionaryDefinition: definition))
             }
-            group.addTask {
+            group.addTask { @MainActor in
                 let translated = self.bridge.translate(text: text, targetLang: "vi")?.translated
                 let definition = translated.flatMap { DictionaryParser.parse(self.fetchRawDefinition(for: $0) ?? "") }
                 return ("vi", LookupTranslationResult(translated: translated, dictionaryDefinition: definition))
             }
-            group.addTask {
+            group.addTask { @MainActor in
                 let translated = self.bridge.translate(text: text, targetLang: "ja")?.translated
                 let definition = translated.flatMap { DictionaryParser.parse(self.fetchRawDefinition(for: $0) ?? "") }
                 return ("ja", LookupTranslationResult(translated: translated, dictionaryDefinition: definition))

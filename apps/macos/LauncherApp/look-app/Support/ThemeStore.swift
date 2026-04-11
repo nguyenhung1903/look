@@ -53,12 +53,14 @@ final class ThemeStore: ObservableObject {
     struct ConfigReloadResult {
         let loadedTheme: String
         let warnings: [String]
+        let settingsBlurMultiplier: Double?
     }
 
     func reloadFromConfig() -> ConfigReloadResult {
         Self.ensureDefaultConfigFileExists(at: Self.configPath())
 
         var warnings: [String] = []
+        var loadedSettingsBlurMultiplier: Double? = nil
         let configPath = Self.configPath()
 
         // First, scan raw config for invalid values before applying
@@ -98,8 +100,13 @@ final class ThemeStore: ObservableObject {
                     }
                 case "ui_theme":
                     if !value.isEmpty {
-                        let validThemes = ["catppuccin", "tokyoNight", "rosePine", "gruvbox", "dracula", "kanagawa"]
-                        if !validThemes.contains(value.lowercased()) {
+                        let themeValue = value.lowercased()
+                        let validThemes = ["catppuccin", "tokyonight", "rosepine", "gruvbox", "dracula", "kanagawa"]
+                        if validThemes.contains(themeValue) {
+                            let preset = BuiltinThemePreset(rawValue: themeValue) ?? .custom
+                            settings.uiTheme = preset
+                            applyBuiltinTheme(preset)
+                        } else {
                             warnings.append("theme '\(value)' not found")
                         }
                     }
@@ -139,7 +146,8 @@ final class ThemeStore: ObservableObject {
         _ = applyLaunchAtLoginSetting()
 
         let resultTheme = detectBuiltinTheme(for: settings)
-        return ConfigReloadResult(loadedTheme: resultTheme.title, warnings: warnings)
+        let loadedBlurMultiplier = settings.settingsBlurMultiplier
+        return ConfigReloadResult(loadedTheme: resultTheme.title, warnings: warnings, settingsBlurMultiplier: loadedBlurMultiplier)
     }
 
     func saveCurrentConfigToFile() -> Bool {
@@ -190,6 +198,11 @@ final class ThemeStore: ObservableObject {
             upsertConfigLine(&lines, key: "ui_background_image_mode", value: settings.backgroundImageMode.rawValue)
             upsertConfigLine(&lines, key: "ui_background_image_opacity", value: String(format: "%.2f", settings.backgroundImageOpacity))
             upsertConfigLine(&lines, key: "ui_background_image_blur", value: String(format: "%.1f", settings.backgroundImageBlur))
+        } else {
+            removeConfigLine(&lines, key: "ui_background_image")
+            removeConfigLine(&lines, key: "ui_background_image_mode")
+            removeConfigLine(&lines, key: "ui_background_image_opacity")
+            removeConfigLine(&lines, key: "ui_background_image_blur")
         }
 
         // Settings blur multiplier
@@ -512,6 +525,14 @@ final class ThemeStore: ObservableObject {
             }
         }
         lines.append("\(key)=\(value)")
+    }
+
+    private func removeConfigLine(_ lines: inout [String], key: String) {
+        let wanted = "\(key)="
+        lines.removeAll { line in
+            let trimmed = stripComment(line).trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.hasPrefix(wanted)
+        }
     }
 
     private func parseExcludedFolderPaths(_ value: String) -> [String] {

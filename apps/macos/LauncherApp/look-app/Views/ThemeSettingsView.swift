@@ -89,19 +89,61 @@ struct ThemeSettingsView: View {
     }
 
     private var appearanceTab: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Tint Color")
-                    .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                    .foregroundStyle(themeStore.secondaryTextColor())
+                sectionHeaderWithPicker("Theme") {
+                    Picker("Theme", selection: $settings.uiTheme) {
+                        ForEach(BuiltinThemePreset.allCases) { preset in
+                            Text(preset.title).tag(preset)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: AppConstants.ThemeUI.pickerWidth)
+                    .onChange(of: settings.uiTheme) { _, newValue in
+                        themeStore.applyBuiltinTheme(newValue)
+                    }
+                }
+
+                Divider()
+                    .overlay(.white.opacity(0.1))
+                    .padding(.vertical, 4)
+
+                sectionHeader("Tint Color")
 
                 LabeledSlider(title: "Red", value: $settings.tintRed, range: 0...1)
                 LabeledSlider(title: "Green", value: $settings.tintGreen, range: 0...1)
                 LabeledSlider(title: "Blue", value: $settings.tintBlue, range: 0...1)
                 LabeledSlider(title: "Tint Opacity", value: $settings.tintOpacity, range: 0...1)
 
+                sectionHeader("Blur")
+
                 LabeledSlider(title: "Blur Opacity", value: $settings.blurOpacity, range: 0...1)
                 LabeledSlider(title: "Settings Blur", value: $appUIState.settingsBlurMultiplier, range: 0.4...1)
+
+                HStack(spacing: 10) {
+                    Text("Blur Style")
+                        .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
+                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                        .foregroundStyle(themeStore.secondaryTextColor())
+
+                    Picker("Blur Style", selection: $settings.blurMaterial) {
+                        ForEach(LauncherBlurMaterial.allCases) { item in
+                            Text(item.title).tag(item)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: AppConstants.ThemeUI.pickerWidth)
+
+                    Text(settings.blurMaterial.detail)
+                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                        .foregroundStyle(themeStore.mutedTextColor())
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                sectionHeader("Font")
 
                 HStack(spacing: 10) {
                     Text("Font Name")
@@ -153,46 +195,20 @@ struct ThemeSettingsView: View {
 
                 LabeledSlider(title: "Font Size", value: $settings.fontSize, range: 10...28)
 
-                Text("Font Color")
-                    .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                    .foregroundStyle(themeStore.secondaryTextColor())
+                sectionHeader("Font Color")
 
                 LabeledSlider(title: "Text Red", value: $settings.fontRed, range: 0...1)
                 LabeledSlider(title: "Text Green", value: $settings.fontGreen, range: 0...1)
                 LabeledSlider(title: "Text Blue", value: $settings.fontBlue, range: 0...1)
                 LabeledSlider(title: "Text Opacity", value: $settings.fontOpacity, range: 0...1)
 
-                Text("Border")
-                    .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
-                    .foregroundStyle(themeStore.secondaryTextColor())
+                sectionHeader("Border")
 
                 LabeledSlider(title: "Border Thick", value: $settings.borderThickness, range: 0...6)
                 LabeledSlider(title: "Border Red", value: $settings.borderRed, range: 0...1)
                 LabeledSlider(title: "Border Green", value: $settings.borderGreen, range: 0...1)
-                LabeledSlider(title: "Border Blue", value: $settings.borderBlue, range: 0...1)
+                LabeledSlider(title: "Border Blue", value: $settings.fontBlue, range: 0...1)
                 LabeledSlider(title: "Border Opacity", value: $settings.borderOpacity, range: 0...1)
-
-                HStack(spacing: 10) {
-                    Text("Blur Style")
-                        .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
-                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
-                        .foregroundStyle(themeStore.secondaryTextColor())
-
-                    Picker("Blur Style", selection: $settings.blurMaterial) {
-                        ForEach(LauncherBlurMaterial.allCases) { item in
-                            Text(item.title).tag(item)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: AppConstants.ThemeUI.pickerWidth)
-
-                    Text(settings.blurMaterial.detail)
-                        .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
-                        .foregroundStyle(themeStore.mutedTextColor())
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
             }
             .onAppear {
                 focusedField = nil
@@ -209,7 +225,37 @@ struct ThemeSettingsView: View {
                 }
             }
         }
-        .scrollIndicators(.hidden)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack(spacing: 8) {
+            Text("▶")
+                .font(.system(size: CGFloat(settings.fontSize - 2)))
+                .foregroundStyle(themeStore.secondaryTextColor())
+
+            Text(title)
+                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
+                .foregroundStyle(themeStore.secondaryTextColor())
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private func sectionHeaderWithPicker<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 8) {
+            Text("▶")
+                .font(.system(size: CGFloat(settings.fontSize - 2)))
+                .foregroundStyle(themeStore.secondaryTextColor())
+
+            Text(title)
+                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
+                .foregroundStyle(themeStore.secondaryTextColor())
+
+            content()
+
+            Spacer(minLength: 0)
+        }
     }
 
     private func tabButton(title: String, index: Int) -> some View {
@@ -277,7 +323,7 @@ struct ThemeSettingsView: View {
 
     private var backgroundTab: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Background")
                         .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .semibold))
@@ -495,7 +541,6 @@ struct ThemeSettingsView: View {
                     }
                 }
             }
-            .scrollIndicators(.hidden)
             .onAppear { syncIndexingInputsFromSettings() }
             .onChange(of: settings.fileScanDepth) { _, _ in
                 fileScanDepthInput = String(settings.fileScanDepth)
@@ -513,7 +558,7 @@ struct ThemeSettingsView: View {
     }
 
     private var shortcutsTab: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(ShortcutDocs.sections) { section in
                     ShortcutSection(title: section.title, items: section.items)
@@ -529,7 +574,6 @@ struct ThemeSettingsView: View {
             }
             .padding(.top, 4)
         }
-        .scrollIndicators(.hidden)
     }
 
     private func selectBackgroundImage() {
