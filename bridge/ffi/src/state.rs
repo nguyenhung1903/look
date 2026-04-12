@@ -21,8 +21,8 @@ static JSON_ALLOCS: OnceLock<Mutex<HashMap<usize, CString>>> = OnceLock::new();
 static BOOTSTRAP_REFRESH_STARTED: OnceLock<()> = OnceLock::new();
 static INDEX_WATCHER_BOOTSTRAP_STARTED: OnceLock<()> = OnceLock::new();
 static INDEX_REFRESH_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
-static INDEX_DIRTY: AtomicBool = AtomicBool::new(false);
 static INDEX_CHANGE_VERSION: AtomicU64 = AtomicU64::new(0);
+static INDEX_CLEARED_VERSION: AtomicU64 = AtomicU64::new(0);
 static INDEX_WATCHER_CONTROL: OnceLock<Mutex<Option<mpsc::Sender<()>>>> = OnceLock::new();
 
 pub(crate) fn default_db_path() -> PathBuf {
@@ -71,17 +71,17 @@ pub(crate) fn request_background_index_refresh() -> bool {
 
 pub(crate) fn mark_index_dirty() {
     INDEX_CHANGE_VERSION.fetch_add(1, Ordering::AcqRel);
-    INDEX_DIRTY.store(true, Ordering::Release);
 }
 
 pub(crate) fn clear_index_dirty_if_unchanged(snapshot_version: u64) {
     if INDEX_CHANGE_VERSION.load(Ordering::Acquire) == snapshot_version {
-        INDEX_DIRTY.store(false, Ordering::Release);
+        INDEX_CLEARED_VERSION.store(snapshot_version, Ordering::Release);
     }
 }
 
 pub(crate) fn clear_index_dirty() {
-    INDEX_DIRTY.store(false, Ordering::Release);
+    let current = INDEX_CHANGE_VERSION.load(Ordering::Acquire);
+    INDEX_CLEARED_VERSION.store(current, Ordering::Release);
 }
 
 pub(crate) fn restart_index_watchers() {
@@ -143,6 +143,7 @@ pub(crate) fn restart_index_watchers() {
 
         if watched_count == 0 {
             log_error("index watcher failed: no roots watched");
+            mark_index_dirty();
             return;
         }
 
@@ -178,7 +179,7 @@ fn request_background_index_refresh_internal() -> bool {
     let lazy_indexing_enabled = RuntimeConfig::load().lazy_indexing_enabled;
     // Lazy indexing ON: refresh only when watcher marked index as dirty.
     // Lazy indexing OFF: refresh on every Cmd+Space request.
-    if !refresh_allowed_by_dirty_mode(lazy_indexing_enabled, INDEX_DIRTY.load(Ordering::Acquire)) {
+    if !refresh_allowed_by_dirty_mode(lazy_indexing_enabled, is_index_dirty()) {
         return false;
     }
     if !try_acquire_index_refresh_slot() {
@@ -232,6 +233,10 @@ fn refresh_allowed_by_dirty_mode(lazy_indexing_enabled: bool, index_dirty: bool)
         return index_dirty;
     }
     true
+}
+
+fn is_index_dirty() -> bool {
+    INDEX_CHANGE_VERSION.load(Ordering::Acquire) != INDEX_CLEARED_VERSION.load(Ordering::Acquire)
 }
 
 fn try_acquire_index_refresh_slot() -> bool {
@@ -362,8 +367,8 @@ fn should_mark_dirty_from_event(event: &Event) -> bool {
 mod tests {
     use super::should_mark_dirty_from_event;
     use super::{
-        INDEX_CHANGE_VERSION, INDEX_DIRTY, INDEX_REFRESH_IN_PROGRESS, IndexRefreshGuard,
-        clear_index_dirty, clear_index_dirty_if_unchanged, mark_index_dirty,
+        INDEX_CHANGE_VERSION, INDEX_REFRESH_IN_PROGRESS, IndexRefreshGuard, clear_index_dirty,
+        clear_index_dirty_if_unchanged, is_index_dirty, mark_index_dirty,
         refresh_allowed_by_dirty_mode, try_acquire_index_refresh_slot,
     };
     use notify::event::{CreateKind, DataChange, ModifyKind, RemoveKind, RenameMode};
@@ -428,7 +433,7 @@ mod tests {
         let snapshot = INDEX_CHANGE_VERSION.load(std::sync::atomic::Ordering::Acquire);
 
         clear_index_dirty_if_unchanged(snapshot);
-        assert!(!INDEX_DIRTY.load(std::sync::atomic::Ordering::Acquire));
+        assert!(!is_index_dirty());
     }
 
     #[test]
@@ -441,7 +446,7 @@ mod tests {
         mark_index_dirty();
 
         clear_index_dirty_if_unchanged(snapshot);
-        assert!(INDEX_DIRTY.load(std::sync::atomic::Ordering::Acquire));
+        assert!(is_index_dirty());
     }
 
     #[test]
