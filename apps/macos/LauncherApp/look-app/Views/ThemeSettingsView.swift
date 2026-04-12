@@ -19,6 +19,7 @@ struct ThemeSettingsView: View {
     @State private var fileScanLimitInput = ""
     @State private var fileScanDepthError: String?
     @State private var fileScanLimitError: String?
+    @State private var localKeyMonitor: Any?
     @FocusState private var focusedField: Field?
 
     var body: some View {
@@ -55,8 +56,7 @@ struct ThemeSettingsView: View {
                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
 
                 Button("Back to Launcher") {
-                    appUIState.showsThemeSettings = false
-                    NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
+                    closeSettingsPanel()
                 }
                 .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
                 Text("Esc or Cmd+Shift+, to close")
@@ -83,8 +83,13 @@ struct ThemeSettingsView: View {
 
         }
         .onExitCommand {
-            appUIState.showsThemeSettings = false
-            NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
+            closeSettingsPanel()
+        }
+        .onAppear {
+            installLocalKeyMonitorIfNeeded()
+        }
+        .onDisappear {
+            removeLocalKeyMonitor()
         }
     }
 
@@ -447,6 +452,16 @@ struct ThemeSettingsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
+                    Toggle(isOn: $settings.lazyIndexingEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Lazy indexing")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 1), weight: .regular))
+                            Text("Refresh index automatically when launcher opens after file/app changes")
+                                .font(themeStore.uiFont(size: CGFloat(settings.fontSize - 2), weight: .regular))
+                                .foregroundStyle(themeStore.mutedTextColor())
+                        }
+                    }
+
                     HStack(alignment: .top, spacing: 10) {
                         Text("Skip Folders")
                             .frame(width: AppConstants.ThemeUI.labelWidth, alignment: .leading)
@@ -622,6 +637,39 @@ struct ThemeSettingsView: View {
         }
         settings.fileScanLimit = min(max(500, parsed), 50_000)
         fileScanLimitInput = String(settings.fileScanLimit)
+    }
+
+    private func closeSettingsPanel() {
+        appUIState.showsThemeSettings = false
+        NotificationCenter.default.post(name: .lookRefocusInputRequested, object: nil)
+    }
+
+    private func installLocalKeyMonitorIfNeeded() {
+        guard localKeyMonitor == nil else { return }
+
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+            if event.keyCode == 53 && flags.isEmpty {
+                closeSettingsPanel()
+                return nil
+            }
+
+            if flags == [.command, .shift]
+                && (event.charactersIgnoringModifiers == "," || event.keyCode == 43)
+            {
+                closeSettingsPanel()
+                return nil
+            }
+
+            return event
+        }
+    }
+
+    private func removeLocalKeyMonitor() {
+        guard let localKeyMonitor else { return }
+        NSEvent.removeMonitor(localKeyMonitor)
+        self.localKeyMonitor = nil
     }
 
     private var hasIndexingError: Bool {

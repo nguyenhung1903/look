@@ -49,6 +49,7 @@ This document tracks what `look` supports today and what is planned next.
 
 - SQLite-backed candidate + usage storage
 - startup/index refresh pipeline for apps/files/settings
+- dirty-aware incremental indexing via file-system events (`Cmd+Space` refresh-on-dirty)
 - usage-event feedback loop for ranking updates
 - Rust core + FFI bridge to Swift app shell
 
@@ -61,7 +62,6 @@ This document tracks what `look` supports today and what is planned next.
 
 ## Planned direction
 
-- incremental indexing via file-system events
 - optional extension/plugin injection model (without bloating base UX)
 - broader platform support after macOS quality stabilizes (Windows first)
 

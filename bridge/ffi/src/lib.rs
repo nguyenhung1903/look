@@ -41,12 +41,20 @@ pub extern "C" fn look_record_usage_json(
 #[unsafe(no_mangle)]
 pub extern "C" fn look_reload_config() -> bool {
     runtime_config::reload_runtime_config();
+    state::restart_index_watchers();
     let path = state::default_db_path();
     if QueryEngine::bootstrap_sqlite(&path).is_err() {
+        state::mark_index_dirty();
         return false;
     }
     state::refresh_engine_cache();
+    state::clear_index_dirty();
     true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn look_request_index_refresh() -> bool {
+    state::request_background_index_refresh()
 }
 
 #[unsafe(no_mangle)]

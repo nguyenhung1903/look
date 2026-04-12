@@ -116,8 +116,15 @@ Default values:
 
 - **File Scan Depth**: 4 (range: 1-12)
 - **File Scan Limit**: 4000 (range: 500-50000)
+- **Lazy indexing**: On
 
 These control how deeply and how many files are indexed for search.
+
+Lazy indexing behavior:
+
+- when **On**, Look listens for file/app create/remove/rename events and marks the index dirty,
+- pressing `Cmd+Space` triggers background reindex only when dirty,
+- when **Off**, pressing `Cmd+Space` always triggers background reindex.
 
 ### Other Settings
 
@@ -135,6 +142,7 @@ Backend-related keys:
 
 - `app_scan_roots`, `app_scan_depth`, `app_exclude_paths`, `app_exclude_names`
 - `file_scan_roots`, `file_scan_depth`, `file_scan_limit`, `file_exclude_paths`
+- `lazy_indexing_enabled`
 - `skip_dir_names`
 - `translate_allow_network`, `backend_log_level`, `launch_at_login`
 

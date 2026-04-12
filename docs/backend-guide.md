@@ -115,7 +115,10 @@ After launch, validate:
 
 - search returns expected results,
 - usage events update ranking after opening items,
-- config reload (`Cmd+Shift+;`) applies expected runtime changes.
+- config reload (`Cmd+Shift+;`) applies expected runtime changes,
+- lazy indexing mode behavior:
+  - `lazy_indexing_enabled=true`: `Cmd+Space` refreshes only when dirty,
+  - `lazy_indexing_enabled=false`: `Cmd+Space` always requests background refresh.
 
 ## Reliability rules
 

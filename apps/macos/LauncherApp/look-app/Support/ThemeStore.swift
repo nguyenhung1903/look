@@ -31,13 +31,7 @@ final class ThemeStore: ObservableObject {
     init() {
         Self.ensureDefaultConfigFileExists(at: Self.configPath())
 
-        if let data = UserDefaults.standard.data(forKey: defaultsKey),
-            let decoded = try? JSONDecoder().decode(ThemeSettings.self, from: data)
-        {
-            settings = decoded
-        } else {
-            settings = .default
-        }
+        settings = Self.loadThemeSettings(from: UserDefaults.standard.data(forKey: defaultsKey))
 
         applyThemeOverridesFromConfigFile()
         _ = applyLaunchAtLoginSetting()
@@ -184,6 +178,11 @@ final class ThemeStore: ObservableObject {
         upsertConfigLine(&lines, key: "ui_border_opacity", value: String(format: "%.2f", settings.borderOpacity))
         upsertConfigLine(&lines, key: "file_scan_depth", value: String(settings.fileScanDepth))
         upsertConfigLine(&lines, key: "file_scan_limit", value: String(settings.fileScanLimit))
+        upsertConfigLine(
+            &lines,
+            key: "lazy_indexing_enabled",
+            value: settings.lazyIndexingEnabled ? "true" : "false"
+        )
         upsertConfigLine(
             &lines,
             key: "file_exclude_paths",
@@ -400,6 +399,10 @@ final class ThemeStore: ObservableObject {
             case "file_scan_limit":
                 if let parsed = parsePositiveInt(value) {
                     settings.fileScanLimit = parsed
+                }
+            case "lazy_indexing_enabled":
+                if let parsed = parseBool(value) {
+                    settings.lazyIndexingEnabled = parsed
                 }
             case "file_exclude_paths":
                 excludedFolderPaths = parseExcludedFolderPaths(value)
@@ -664,6 +667,7 @@ app_exclude_names=
 file_scan_roots=Desktop,Documents,Downloads
 file_scan_depth=4
 file_scan_limit=8000
+lazy_indexing_enabled=true
 file_exclude_paths=
 backend_log_level=error
 launch_at_login=true
@@ -688,6 +692,33 @@ ui_border_green=1.0
 ui_border_blue=1.0
 ui_border_opacity=0.12
 """
+
+    private static func loadThemeSettings(from data: Data?) -> ThemeSettings {
+        guard let data else {
+            return .default
+        }
+
+        let decoder = JSONDecoder()
+        if let decoded = try? decoder.decode(ThemeSettings.self, from: data) {
+            return decoded
+        }
+
+        guard
+            var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            object["lazyIndexingEnabled"] == nil
+        else {
+            return .default
+        }
+
+        object["lazyIndexingEnabled"] = true
+        guard
+            let migratedData = try? JSONSerialization.data(withJSONObject: object),
+            let migrated = try? decoder.decode(ThemeSettings.self, from: migratedData)
+        else {
+            return .default
+        }
+        return migrated
+    }
 
     private func refreshBackgroundImageURL() {
         scopedBackgroundURL?.stopAccessingSecurityScopedResource()

@@ -140,6 +140,14 @@ The indexing flow is designed as a bounded pipeline:
 - prune usage history,
 - refresh in-memory cache for fast queries.
 
+Runtime refresh triggers:
+
+- file-system watcher monitors configured app/file roots and marks in-memory `index_dirty` on create/remove/rename events,
+- launcher open (`Cmd+Space`) requests background refresh through FFI,
+- refresh execution mode depends on `lazy_indexing_enabled`:
+  - `true`: run only when dirty,
+  - `false`: run on every launcher open request.
+
 ```mermaid
 flowchart TD
     Start[Engine cache init or config reload] --> Bootstrap[QueryEngine bootstrap_sqlite]

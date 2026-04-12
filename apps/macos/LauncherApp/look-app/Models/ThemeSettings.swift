@@ -132,6 +132,7 @@ struct ThemeSettings: Codable, Equatable {
 
     var fileScanDepth: Int = 4
     var fileScanLimit: Int = 4000
+    var lazyIndexingEnabled: Bool = true
     var backendLogLevel: BackendLogLevel = .error
     var launchAtLogin: Bool = true
 

@@ -20,6 +20,10 @@ private func look_free_cstring(_ ptr: UnsafeMutablePointer<CChar>?)
 nonisolated
 private func look_reload_config() -> Bool
 
+@_silgen_name("look_request_index_refresh")
+nonisolated
+private func look_request_index_refresh() -> Bool
+
 @_silgen_name("look_translate_json")
 nonisolated
 private func look_translate_json(_ text: UnsafePointer<CChar>?, _ targetLang: UnsafePointer<CChar>?) -> UnsafeMutablePointer<CChar>?
@@ -109,6 +113,11 @@ final class EngineBridge {
 
     nonisolated func reloadConfig() -> Bool {
         look_reload_config()
+    }
+
+    @discardableResult
+    nonisolated func requestIndexRefresh() -> Bool {
+        look_request_index_refresh()
     }
 
     nonisolated func translate(text: String, targetLang: String = "en") -> TranslationResult? {

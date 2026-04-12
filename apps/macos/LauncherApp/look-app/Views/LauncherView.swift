@@ -929,6 +929,7 @@ struct LauncherView: View {
             return
         }
 
+        _ = bridge.requestIndexRefresh()
         NSApplication.shared.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         activateLauncherModeAndFocus()

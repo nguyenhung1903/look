@@ -20,6 +20,7 @@ pub const FILE_SCAN_LIMIT: usize = 8000;
 pub const FILE_SCAN_LIMIT_MIN: usize = 500;
 pub const FILE_SCAN_LIMIT_MAX: usize = 50_000;
 pub const FILE_EXCLUDE_PATHS: [&str; 0] = [];
+pub const LAZY_INDEXING_ENABLED: bool = true;
 
 pub const SCORE_TITLE_CONTAINS: i64 = 1200;
 pub const SCORE_SUBTITLE_CONTAINS: i64 = 900;
@@ -75,6 +76,7 @@ pub struct RuntimeConfig {
     pub file_scan_limit: usize,
     pub file_exclude_paths: Vec<String>,
     pub skip_dir_names: Vec<String>,
+    pub lazy_indexing_enabled: bool,
 }
 
 impl Default for RuntimeConfig {
@@ -104,6 +106,7 @@ impl Default for RuntimeConfig {
                 .iter()
                 .map(|value| value.to_string())
                 .collect(),
+            lazy_indexing_enabled: LAZY_INDEXING_ENABLED,
         }
     }
 }
@@ -204,6 +207,11 @@ impl RuntimeConfig {
                         }
                     }
                 }
+                "lazy_indexing_enabled" => {
+                    if let Some(parsed) = parse_bool(value) {
+                        self.lazy_indexing_enabled = parsed;
+                    }
+                }
                 _ => {}
             }
         }
@@ -244,6 +252,7 @@ file_scan_roots=Desktop,Documents,Downloads\n\
 file_scan_depth=4\n\
 file_scan_limit=8000\n\
 file_exclude_paths=\n\
+lazy_indexing_enabled=true\n\
 skip_dir_names=node_modules,target,build,dist,library,applications,old firefox data,deriveddata,pods,vendor,out,coverage,tmp,cache,venv\n\
 \n\
 # UI theme\n\
@@ -328,6 +337,14 @@ fn parse_positive_usize(value: &str) -> Option<usize> {
         .parse::<usize>()
         .ok()
         .filter(|parsed| *parsed > 0)
+}
+
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
 }
 
 fn expand_path(value: &str, home: Option<&str>) -> String {
@@ -423,5 +440,33 @@ mod tests {
         assert!(config.skip_dir_names.iter().any(|name| name == "vendor"));
 
         let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn lazy_indexing_enabled_is_loaded_from_config() {
+        let tmp = std::env::temp_dir().join(format!(
+            "look-config-test-lazy-indexing-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system time should be after epoch")
+                .as_nanos()
+        ));
+
+        std::fs::write(&tmp, "lazy_indexing_enabled=false\n")
+            .expect("should write temporary config");
+
+        let mut config = RuntimeConfig::default();
+        assert!(config.lazy_indexing_enabled);
+
+        config.apply_from_file(&tmp);
+        assert!(!config.lazy_indexing_enabled);
+
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn default_config_contents_include_lazy_indexing_enabled() {
+        assert!(default_config_contents().contains("lazy_indexing_enabled=true"));
     }
 }
