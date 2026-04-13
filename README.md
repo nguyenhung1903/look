@@ -57,6 +57,7 @@ Theme and alias notes:
 - built-in themes are available in `Settings > Appearance` and persisted in `~/.look.config`
 - search aliases are configured with `alias_<keyword>=Term1|Term2|...` in `~/.look.config` and apply to app + System Settings search
 - fresh config presets include `alias_note`, `alias_code`, `alias_term`, `alias_chat`, `alias_music`, and `alias_brow`
+- `Settings > Advanced > Create Fresh Config` recreates the current config file from latest defaults (with confirmation popup)
 
 Indexing config supports include roots plus exclude rules for both apps and files.
 
@@ -108,6 +109,7 @@ Current built-in themes (Settings > Appearance):
 
 - Backend currently includes: SQLite-backed candidate storage, dynamic app/settings/file indexing, and usage event logging.
 - User guide: [docs/user-guide.md](docs/user-guide.md).
+- Apple release signing/notarization guide: [docs/apple-developer-release-guide.md](docs/apple-developer-release-guide.md).
 - Backend contributor guide (edit targets + verification): [docs/backend-guide.md](docs/backend-guide.md).
 - Feature status: [docs/features.md](docs/features.md).
 - Task breakdown: [docs/tasks.md](docs/tasks.md).
@@ -268,7 +270,6 @@ In scope for first milestone:
 - translate text with `t"...` (network, returns VI/EN/JA)
 - dictionary lookup panel with `tw"...` (definitions/examples from installed dictionaries)
 - command mode with `calc`, `shell`, `kill`, and `sys`
-- optional translation exists behind network opt-in (`translate_allow_network=true`)
 - predictable, local-first behavior
 
 Out of scope for v1:

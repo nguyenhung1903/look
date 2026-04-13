@@ -322,6 +322,30 @@ mod tests {
     }
 
     #[test]
+    fn keychain_query_matches_keychain_access_app() {
+        let engine = QueryEngine::new(vec![
+            Candidate::new(
+                "app:keychain",
+                CandidateKind::App,
+                "Keychain Access",
+                "/System/Library/CoreServices/Applications/Keychain Access.app",
+            ),
+            Candidate::new(
+                "app:archive",
+                CandidateKind::App,
+                "Archive Utility",
+                "/System/Library/CoreServices/Applications/Archive Utility.app",
+            ),
+        ]);
+
+        let results = engine.search_scored("keychain", 10);
+        assert_eq!(
+            results.first().map(|(candidate, _)| candidate.id.as_ref()),
+            Some("app:keychain")
+        );
+    }
+
+    #[test]
     fn empty_query_prioritizes_recent_and_frequent_apps() {
         let mut frequent_app = Candidate::new(
             "app.frequent",
@@ -574,7 +598,6 @@ mod tests {
             Some("file.note")
         );
     }
-
     #[test]
     fn alias_brow_does_not_promote_archive_for_arc_term() {
         let mut config = RuntimeConfig::default();
@@ -602,6 +625,36 @@ mod tests {
         assert_eq!(
             results.first().map(|(candidate, _)| candidate.id.as_ref()),
             Some("app.arc")
+        );
+    }
+
+    #[test]
+    fn alias_can_match_system_settings_subtitle_terms() {
+        let mut config = RuntimeConfig::default();
+        config
+            .search_aliases
+            .insert("update".to_string(), vec!["software update".to_string()]);
+
+        let mut settings = Candidate::new(
+            "setting:update",
+            CandidateKind::App,
+            "General",
+            "x-apple.systempreferences:com.apple.preference.general",
+        );
+        settings.subtitle = Some("System Settings software update".into());
+
+        let app = Candidate::new(
+            "app.updates",
+            CandidateKind::App,
+            "General Helper",
+            "/Applications/General Helper.app",
+        );
+
+        let engine = QueryEngine::new_with_config(vec![app, settings], &config);
+        let results = engine.search_scored("update", 10);
+        assert_eq!(
+            results.first().map(|(candidate, _)| candidate.id.as_ref()),
+            Some("setting:update")
         );
     }
 }

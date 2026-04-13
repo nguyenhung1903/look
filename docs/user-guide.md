@@ -62,8 +62,7 @@ Clipboard mode (`c"`):
 Translation mode (`t"`/`tw"`):
 
 - supports EN/VI/JA result sections,
-- network translation is controlled by `translate_allow_network`,
-- when disabled, translation requests are blocked locally.
+- translation uses network requests.
 
 ## 5) Command mode
 
@@ -137,6 +136,7 @@ Runtime config file:
 - path: `~/.look.config`
 - optional override: `LOOK_CONFIG_PATH=/path/to/config`
 - reload after manual edits: `Cmd+Shift+;`
+- reset to fresh defaults from UI: `Settings -> Advanced -> Create Fresh Config` (confirmation popup)
 
 Backend-related keys:
 
@@ -145,7 +145,7 @@ Backend-related keys:
 - `lazy_indexing_enabled`
 - `skip_dir_names`
 - `alias_<keyword>` (for app + System Settings query aliases, for example `alias_note=Notion|Obsidian|Notes|Apple Notes|Bear|Logseq`)
-- `translate_allow_network`, `backend_log_level`, `launch_at_login`
+- `backend_log_level`, `launch_at_login`
 
 Alias note:
 
@@ -166,6 +166,12 @@ Preset update behavior:
 
 - presets are written automatically only when `~/.look.config` is created for the first time
 - app updates do not rewrite an existing config file, so existing users should add new `alias_*` keys manually
+
+Fresh config reset behavior:
+
+- `Create Fresh Config` replaces the current config file with the latest default template
+- reset uses the active config path (`LOOK_CONFIG_PATH` when set, otherwise `~/.look.config`)
+- existing custom values are replaced during this reset flow (use manual edit + `Cmd+Shift+;` if you only want partial changes)
 
 UI-related keys include the `ui_*` group (tint/blur/font/border values).
 
@@ -200,7 +206,6 @@ If hotkey does not work:
 
 If translation does not return results:
 
-- confirm `translate_allow_network=true`
 - check connectivity and retry
 
 ## 9) Related docs

@@ -49,7 +49,6 @@ impl QueryEngine {
 
         false
     }
-
     fn alias_terms_for_query<'a>(
         &'a self,
         normalized_query: &str,
@@ -214,11 +213,16 @@ impl QueryEngine {
             } else {
                 None
             };
+            let alias_subtitle_search = if is_system_settings_candidate(&candidate.candidate) {
+                candidate.subtitle_search.as_deref()
+            } else {
+                subtitle_search
+            };
             let alias_score = alias_terms.and_then(|terms| {
                 if candidate.candidate.kind != CandidateKind::App {
                     return None;
                 }
-                Self::alias_match_score(terms, &candidate.title_search, subtitle_search)
+                Self::alias_match_score(terms, &candidate.title_search, alias_subtitle_search)
             });
 
             let base = [
