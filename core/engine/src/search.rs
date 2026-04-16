@@ -5,7 +5,7 @@ use crate::query::ParsedQuery;
 use crate::scoring::{
     ScoredMatch, contains_match_score, default_browse_score, finalize_top_k,
     is_system_settings_candidate, kind_bias, looks_like_settings_query, path_depth_penalty,
-    path_match_score, push_top_k, query_kind_penalty,
+    path_match_score, push_top_k, query_kind_penalty_with_settings_flag,
 };
 use look_indexing::{Candidate, CandidateKind};
 use look_matching::{fuzzy_quality_bonus_prepared, fuzzy_score_prepared, prepare_query};
@@ -98,17 +98,17 @@ impl QueryEngine {
         kind_filter: Option<&CandidateKind>,
         limit: usize,
     ) -> Vec<(Candidate, i64)> {
+        // Empty-query mode is a browse ranking pass: usage + recency, no text matching.
         let now_unix_s = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
 
         let mut top = BinaryHeap::new();
-        for candidate in self
-            .candidates
-            .iter()
-            .filter(|candidate| Self::kind_matches(candidate, kind_filter))
-        {
+        for candidate in &self.candidates {
+            if !Self::kind_matches(candidate, kind_filter) {
+                continue;
+            }
             let score = default_browse_score(&candidate.candidate, now_unix_s);
             push_top_k(
                 &mut top,
@@ -126,6 +126,7 @@ impl QueryEngine {
         kind_filter: Option<&CandidateKind>,
         limit: usize,
     ) -> Vec<(Candidate, i64)> {
+        // Invalid or oversized regex patterns fail closed to an empty result set.
         let Some(regex) = raw_query.and_then(|pattern| {
             RegexBuilder::new(pattern)
                 .case_insensitive(true)
@@ -137,11 +138,10 @@ impl QueryEngine {
         };
 
         let mut top = BinaryHeap::new();
-        for candidate in self
-            .candidates
-            .iter()
-            .filter(|candidate| Self::kind_matches(candidate, kind_filter))
-        {
+        for candidate in &self.candidates {
+            if !Self::kind_matches(candidate, kind_filter) {
+                continue;
+            }
             let title_match = regex.is_match(&candidate.candidate.title);
             let path_match = regex.is_match(&candidate.candidate.path);
             let subtitle_match = candidate
@@ -181,18 +181,19 @@ impl QueryEngine {
         kind_filter: Option<&CandidateKind>,
         limit: usize,
     ) -> Vec<(Candidate, i64)> {
+        // Stage 1: fast retrieval over all candidates into a bounded top-K pool.
         let prepared_query = prepare_query(normalized_query);
         let mut top = BinaryHeap::new();
         let has_path_hint = normalized_query.contains('/');
+        // Query-level flag reused across all candidates in this search pass.
         let settings_query = looks_like_settings_query(normalized_query);
         let pool_limit = (limit.saturating_mul(RERANK_POOL_MULTIPLIER)).max(RERANK_TOP_N);
         let alias_terms = self.alias_terms_for_query(normalized_query, kind_filter);
 
-        for candidate in self
-            .candidates
-            .iter()
-            .filter(|candidate| Self::kind_matches(candidate, kind_filter))
-        {
+        for candidate in &self.candidates {
+            if !Self::kind_matches(candidate, kind_filter) {
+                continue;
+            }
             // Use precomputed normalized strings from IndexedCandidate.
             // This avoids normalize_for_search allocations in the hot loop.
             let title_score = fuzzy_score_prepared(&prepared_query, &candidate.title_search);
@@ -222,6 +223,7 @@ impl QueryEngine {
                 if candidate.candidate.kind != CandidateKind::App {
                     return None;
                 }
+                // Alias boosts are app-only to avoid distorting file/folder ranking.
                 Self::alias_match_score(terms, &candidate.title_search, alias_subtitle_search)
             });
 
@@ -246,7 +248,8 @@ impl QueryEngine {
                 &candidate.candidate,
                 &candidate.title_search,
             ) + kind_bias(&candidate.candidate)
-                + query_kind_penalty(normalized_query, &candidate.candidate)
+                // Reuse precomputed query kind to keep this hot loop allocation-free.
+                + query_kind_penalty_with_settings_flag(settings_query, &candidate.candidate)
                 + path_depth_penalty(&candidate.candidate);
             push_top_k(
                 &mut top,
@@ -261,6 +264,7 @@ impl QueryEngine {
             return top_limit(ranked, limit);
         }
 
+        // Stage 2: quality rerank only the leading window to keep latency bounded.
         // Two-stage retrieval:
         // 1) fast scorer over full candidate set
         // 2) quality rerank only on top-N candidates to keep latency predictable

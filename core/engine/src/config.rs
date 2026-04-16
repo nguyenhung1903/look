@@ -1,21 +1,14 @@
 use crate::normalize::normalize_for_search;
+use crate::platform;
+use crate::platform::paths::expand_with_home;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::{Path, PathBuf};
-
-pub const APP_SCAN_ROOTS: [&str; 5] = [
-    "/Applications",
-    "/System/Applications",
-    "/System/Applications/Utilities",
-    "/System/Library/CoreServices/Applications",
-    "/System/Library/CoreServices/Finder.app/Contents/Applications",
-];
 
 pub const APP_SCAN_DEPTH: usize = 3;
 pub const APP_EXCLUDE_PATHS: [&str; 0] = [];
 pub const APP_EXCLUDE_NAMES: [&str; 0] = [];
 
-pub const FILE_SCAN_ROOT_SUFFIXES: [&str; 3] = ["Desktop", "Documents", "Downloads"];
 pub const FILE_SCAN_DEPTH: usize = 4;
 pub const FILE_SCAN_DEPTH_MIN: usize = 1;
 pub const FILE_SCAN_DEPTH_MAX: usize = 12;
@@ -86,10 +79,7 @@ pub struct RuntimeConfig {
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
-            app_scan_roots: APP_SCAN_ROOTS
-                .iter()
-                .map(|value| value.to_string())
-                .collect(),
+            app_scan_roots: default_app_scan_roots(),
             app_scan_depth: APP_SCAN_DEPTH,
             app_exclude_paths: APP_EXCLUDE_PATHS
                 .iter()
@@ -131,7 +121,7 @@ impl RuntimeConfig {
             return;
         };
 
-        let home = env::var("HOME").ok();
+        let home = user_home_dir();
         for raw_line in contents.lines() {
             let line = strip_comments(raw_line).trim();
             if line.is_empty() {
@@ -146,7 +136,10 @@ impl RuntimeConfig {
 
             match key {
                 "app_scan_roots" => {
-                    let parsed = parse_csv(value);
+                    let parsed = parse_csv(value)
+                        .into_iter()
+                        .map(|entry| expand_path(&entry, home.as_deref()))
+                        .collect::<Vec<_>>();
                     if !parsed.is_empty() {
                         self.app_scan_roots = parsed;
                     }
@@ -236,9 +229,7 @@ fn config_path() -> Option<PathBuf> {
         }
     }
 
-    env::var("HOME")
-        .ok()
-        .map(|home| PathBuf::from(home).join(".look.config"))
+    user_home_dir().map(|home| PathBuf::from(home).join(".look.config"))
 }
 
 fn ensure_default_config_file(path: &Path) {
@@ -258,7 +249,8 @@ fn append_missing_default_config_entries(path: &Path) {
     let existing_keys = parse_config_keys(&contents);
     let mut missing_entries = Vec::new();
 
-    for default_line in default_config_contents().lines() {
+    let defaults = default_config_contents();
+    for default_line in defaults.lines() {
         let line = strip_comments(default_line).trim();
         if line.is_empty() {
             continue;
@@ -297,16 +289,19 @@ fn append_missing_default_config_entries(path: &Path) {
         .and_then(|mut file| std::io::Write::write_all(&mut file, appended.as_bytes()));
 }
 
-fn default_config_contents() -> &'static str {
-    "# look configuration\n\
+fn default_config_contents() -> String {
+    let app_roots = default_app_scan_roots().join(",");
+    let file_roots = platform::file_scan_root_suffixes().join(",");
+    format!(
+        "# look configuration\n\
 # Generated on first launch. Edit values and press Cmd+Shift+; to reload.\n\
 \n\
 # Backend indexing (file_scan_depth: 1-12, file_scan_limit: 500-50000)\n\
-app_scan_roots=/Applications,/System/Applications,/System/Applications/Utilities,/System/Library/CoreServices/Applications,/System/Library/CoreServices/Finder.app/Contents/Applications\n\
+app_scan_roots={app_roots}\n\
 app_scan_depth=3\n\
 app_exclude_paths=\n\
 app_exclude_names=\n\
-file_scan_roots=Desktop,Documents,Downloads\n\
+file_scan_roots={file_roots}\n\
 file_scan_depth=4\n\
 file_scan_limit=8000\n\
 file_exclude_paths=\n\
@@ -339,6 +334,7 @@ alias_term=Terminal|iTerm|iTerm2|Ghostty|WezTerm|Alacritty|Kitty|Warp\n\
 alias_chat=Slack|Discord|Telegram|Messages\n\
 alias_music=Spotify|Apple Music|Music\n\
 alias_brow=Safari|Arc|Google Chrome|Chrome|Firefox|Brave\n"
+    )
 }
 
 fn default_search_aliases() -> HashMap<String, Vec<String>> {
@@ -422,12 +418,48 @@ fn default_search_aliases() -> HashMap<String, Vec<String>> {
     aliases
 }
 
-fn default_file_scan_roots() -> Vec<String> {
-    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    FILE_SCAN_ROOT_SUFFIXES
+fn default_app_scan_roots() -> Vec<String> {
+    platform::app_scan_roots()
         .iter()
-        .map(|suffix| format!("{home}/{suffix}"))
+        .map(|value| value.to_string())
         .collect()
+}
+
+fn default_file_scan_roots() -> Vec<String> {
+    let home = user_home_dir().unwrap_or_else(|| ".".to_string());
+    platform::file_scan_root_suffixes()
+        .iter()
+        .map(|suffix| {
+            PathBuf::from(&home)
+                .join(suffix)
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect()
+}
+
+#[cfg(target_os = "windows")]
+fn user_home_dir() -> Option<String> {
+    env::var("USERPROFILE")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            env::var("HOME")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+}
+
+#[cfg(not(target_os = "windows"))]
+fn user_home_dir() -> Option<String> {
+    env::var("HOME")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            env::var("USERPROFILE")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
 }
 
 fn strip_comments(value: &str) -> &str {
@@ -460,18 +492,22 @@ fn parse_config_keys(contents: &str) -> HashSet<String> {
 fn parse_csv(value: &str) -> Vec<String> {
     let mut values = Vec::new();
     let mut current = String::new();
-    let mut escaping = false;
+    let mut chars = value.chars().peekable();
 
-    for ch in value.chars() {
-        if escaping {
-            current.push(ch);
-            escaping = false;
-            continue;
-        }
-
+    while let Some(ch) = chars.next() {
         if ch == '\\' {
-            escaping = true;
-            continue;
+            match chars.peek().copied() {
+                Some(',') => {
+                    if let Some(escaped) = chars.next() {
+                        current.push(escaped);
+                    }
+                    continue;
+                }
+                _ => {
+                    current.push(ch);
+                    continue;
+                }
+            }
         }
 
         if ch == ',' {
@@ -484,10 +520,6 @@ fn parse_csv(value: &str) -> Vec<String> {
         }
 
         current.push(ch);
-    }
-
-    if escaping {
-        current.push('\\');
     }
 
     let trimmed = current.trim();
@@ -541,18 +573,7 @@ fn apply_alias_override(alias_key: &str, value: &str, aliases: &mut HashMap<Stri
 }
 
 fn expand_path(value: &str, home: Option<&str>) -> String {
-    if value.starts_with("~/") {
-        return home
-            .map(|prefix| format!("{prefix}/{}", value.trim_start_matches("~/")))
-            .unwrap_or_else(|| value.to_string());
-    }
-
-    if value.starts_with('/') {
-        return value.to_string();
-    }
-
-    home.map(|prefix| format!("{prefix}/{value}"))
-        .unwrap_or_else(|| value.to_string())
+    expand_with_home(value, home)
 }
 
 fn normalize_app_name(value: &str) -> String {
@@ -573,6 +594,21 @@ mod tests {
     fn parse_csv_supports_escaped_commas() {
         let parsed = parse_csv("/Users/demo/Foo\\,Bar,/Users/demo/Baz");
         assert_eq!(parsed, vec!["/Users/demo/Foo,Bar", "/Users/demo/Baz"]);
+    }
+
+    #[test]
+    fn parse_csv_preserves_windows_path_separators() {
+        let parsed = parse_csv("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs");
+        assert_eq!(
+            parsed,
+            vec!["C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs"]
+        );
+    }
+
+    #[test]
+    fn parse_csv_preserves_unc_prefixes() {
+        let parsed = parse_csv("\\\\server\\share\\apps,/Users/demo/Apps");
+        assert_eq!(parsed, vec!["\\\\server\\share\\apps", "/Users/demo/Apps"]);
     }
 
     #[test]
@@ -600,17 +636,50 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn app_scan_roots_include_finder_embedded_apps() {
+        let roots = default_app_scan_roots();
         assert!(
-            APP_SCAN_ROOTS.iter().any(
+            roots.iter().any(
                 |root| root == &"/System/Library/CoreServices/Finder.app/Contents/Applications"
             )
         );
         assert!(
-            APP_SCAN_ROOTS
+            roots
                 .iter()
                 .any(|root| root == &"/System/Library/CoreServices/Applications")
         );
+    }
+
+    #[test]
+    fn expand_path_preserves_windows_absolute_paths() {
+        let home = Some("C:\\Users\\demo");
+        assert_eq!(
+            expand_path("C:\\Program Files\\Look", home),
+            "C:\\Program Files\\Look"
+        );
+        assert_eq!(
+            expand_path("\\\\server\\share\\folder", home),
+            "\\\\server\\share\\folder"
+        );
+    }
+
+    #[test]
+    fn expand_path_uses_windows_separator_when_home_is_windows_style() {
+        let home = Some("C:\\Users\\demo");
+        assert_eq!(expand_path("~/Projects", home), "C:\\Users\\demo\\Projects");
+        assert_eq!(expand_path("Documents", home), "C:\\Users\\demo\\Documents");
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn user_home_dir_prefers_userprofile_over_home_on_windows() {
+        unsafe {
+            env::set_var("HOME", "/c/Users/posix-home");
+            env::set_var("USERPROFILE", "C:/Users/win-home");
+        }
+
+        assert_eq!(user_home_dir().as_deref(), Some("C:/Users/win-home"));
     }
 
     #[test]
@@ -669,6 +738,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn default_config_contents_include_coreservices_applications_root() {
         assert!(default_config_contents().contains("/System/Library/CoreServices/Applications"));
     }

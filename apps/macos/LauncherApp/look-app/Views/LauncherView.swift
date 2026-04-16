@@ -1430,6 +1430,8 @@ struct LauncherView: View {
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
         ) { _ in
+            // Keep focus-loss dismissal here so launcher hide behavior remains
+            // centralized in the view lifecycle (AppDelegate no longer mirrors it).
             if !appUIState.showsThemeSettings {
                 hideLauncherWindow()
             }

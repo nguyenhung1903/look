@@ -13,6 +13,8 @@ Ship a Windows launcher with the same product behavior as macOS:
 - translation and dictionary flows where supported
 - local-first performance profile
 
+Windows v1 parity checklist reference: `docs/windows-v1-parity-checklist.md`
+
 ## Current architecture baseline
 
 Today the codebase is split as:
@@ -126,6 +128,11 @@ Exit criteria:
 - written parity checklist committed in docs
 - agreed v1 scope for Windows shell
 
+Current status:
+
+- parity checklist drafted in `docs/windows-v1-parity-checklist.md`
+- next action: convert checklist entries into automated tests as platform modules land
+
 ## Phase 1 - Platform abstraction in Rust engine
 
 1. Isolate macOS-specific indexing logic behind platform adapters in `core/engine/src/index/`.
@@ -146,6 +153,12 @@ Exit criteria:
 
 - engine builds/tests pass with platform-specific index adapters
 - no macOS-only assumptions outside platform adapter modules
+
+Current status:
+
+- app discovery split into platform modules (`platform/macos/apps.rs`, `platform/windows/apps.rs`)
+- settings catalog split into platform modules (`platform/macos/settings_catalog.rs`, `platform/windows/settings_catalog.rs`)
+- `index/apps.rs` now dispatch-only; ranking/search core remains shared
 
 ### Rust code change map (detailed)
 
@@ -229,6 +242,12 @@ Exit criteria:
 - index produces high-quality app/settings/file candidates on Windows
 - IDs and kinds remain compatible with existing ranking/storage model
 
+Current status:
+
+- Windows app discovery implemented with Start Menu-first scan and lightweight fallback roots
+- curated `ms-settings:` catalog implemented with stable `setting:*` candidate IDs
+- adapter-level Windows unit tests added for entry detection/filtering/dedupe and catalog integrity
+
 ## Phase 3 - FFI hardening for multi-shell support
 
 1. Keep existing exported API in `bridge/ffi/src/lib.rs` stable.
@@ -240,6 +259,13 @@ Exit criteria:
 
 - FFI crate compiles and tests on Windows CI
 - no shell-specific assumptions in FFI JSON models
+
+Current status:
+
+- FFI exported symbol set unchanged (`look_search_json_compact`, `look_record_usage_json`, `look_reload_config`, `look_request_index_refresh`, `look_translate_json`, `look_free_cstring`)
+- ffi smoke coverage expanded to include reload/refresh flow and translate error payload contracts
+- CI matrix already runs `bridge/ffi` build/tests on `windows-latest` and `macos-latest`
+- current non-Windows fallback paths remain macOS-shaped defaults; when Linux support is added, add an explicit Linux branch before fallback
 
 ## Phase 4 - Windows native shell scaffold (WinUI 3)
 

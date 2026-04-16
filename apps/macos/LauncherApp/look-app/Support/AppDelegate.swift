@@ -43,15 +43,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let lockPath = Self.singletonLockPath(for: currentBundlePath)
 
         // Try to acquire singleton lock with grace period for "Quit & Reopen" handoff
-        let lockAcquired = acquireSingletonLock(lockPath: lockPath, timeoutSeconds: Self.relaunchGracePeriodSeconds)
+        _ = acquireSingletonLock(lockPath: lockPath, timeoutSeconds: Self.relaunchGracePeriodSeconds)
 
         // Always check for other running instances to handle:
         // 1. Mixed-version scenarios (older builds not using lock protocol)
         // 2. Lock acquisition failures (fallback to process-based detection)
-        return checkAndActivateDuplicateInstance(currentBundlePath: currentBundlePath, lockAcquired: lockAcquired)
+        return checkAndActivateDuplicateInstance(currentBundlePath: currentBundlePath)
     }
 
-    private func checkAndActivateDuplicateInstance(currentBundlePath: String, lockAcquired: Bool) -> Bool {
+    private func checkAndActivateDuplicateInstance(currentBundlePath: String) -> Bool {
         guard let bundleIdentifier = Bundle.main.bundleIdentifier else {
             return false
         }
@@ -130,9 +130,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             NotificationCenter.default.post(name: .lookActivateLauncherRequested, object: nil)
         }
-    }
-
-    func applicationWillResignActive(_ notification: Notification) {
-        NotificationCenter.default.post(name: .lookHideLauncherRequested, object: nil)
     }
 }
