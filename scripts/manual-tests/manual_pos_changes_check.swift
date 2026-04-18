@@ -1,6 +1,6 @@
 #!/usr/bin/env swift
 // Test script to demonstrate POS label changes
-// Run with: swift test_pos_changes.swift
+// Run with: swift scripts/manual-tests/manual_pos_changes_check.swift
 
 import Foundation
 
