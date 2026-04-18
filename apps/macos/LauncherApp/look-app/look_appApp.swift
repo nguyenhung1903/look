@@ -14,7 +14,6 @@ struct look_appApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appUIState = AppUIState()
     @StateObject private var themeStore = ThemeStore()
-    private let hotKeyManager = GlobalHotKeyManager()
 
     init() {
         if let exitCode = handleCLIFlags() {
@@ -22,7 +21,7 @@ struct look_appApp: App {
             exit(exitCode)
         }
 
-        hotKeyManager.registerToggleHotKey()
+        ConfigPathResolver.applyDefaultConfigEnvironmentIfNeeded()
     }
 
     private func handleCLIFlags() -> Int32? {
@@ -124,7 +123,7 @@ struct look_appApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
                 .frame(minWidth: 620, minHeight: 600)
                 .background(WindowConfigurator())
@@ -133,6 +132,8 @@ struct look_appApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(replacing: .newItem) {}
+
             CommandGroup(replacing: .appTermination) {
                 Button("Hide Look") {
                     NotificationCenter.default.post(name: .lookHideLauncherRequested, object: nil)

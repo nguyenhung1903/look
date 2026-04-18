@@ -218,6 +218,12 @@ Run local dev app (from repository root):
 make app-run
 ```
 
+Install/open a side-by-side Launchpad test build (`Look Dev`) without replacing Homebrew `Look`:
+
+```bash
+make app-run-dev
+```
+
 `make app-run` behavior:
 
 - builds local app bundle with Xcode (`Debug`)
@@ -225,10 +231,18 @@ make app-run
 - launches local app with `LOOK_CONFIG_PATH=$HOME/.look.dev.config`
 - enables a red `TEST APP` badge in the window so local/dev run is visually distinct
 
+`make app-run-dev` behavior:
+
+- builds local app bundle with Xcode (`Debug`)
+- installs `/Applications/Look Dev.app` with bundle id `noah-code.Look.Dev`
+- keeps Homebrew-installed `/Applications/Look.app` untouched
+- launches `Look Dev` with `LOOK_CONFIG_PATH=$HOME/.look.dev.config`
+
 Override dev config path when needed:
 
 ```bash
 make app-run DEV_CONFIG_PATH="$HOME/.look.qa.config"
+make app-run-dev DEV_CONFIG_PATH="$HOME/.look.qa.config"
 ```
 
 Prepare release artifacts/scripts (maintainers):

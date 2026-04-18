@@ -110,6 +110,14 @@ cargo test --manifest-path bridge/ffi/Cargo.toml
 make app-run
 ```
 
+For Launchpad-style testing without replacing Homebrew `Look`, use:
+
+```bash
+make app-run-dev
+```
+
+This installs and runs `/Applications/Look Dev.app` (bundle id `noah-code.Look.Dev`) side-by-side with the normal app.
+
 After launch, validate:
 
 - search returns expected results,

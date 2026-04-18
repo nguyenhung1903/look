@@ -462,15 +462,7 @@ final class ThemeStore: ObservableObject {
     }
 
     private static func configPath() -> URL {
-        let env = ProcessInfo.processInfo.environment
-        if let custom = env["LOOK_CONFIG_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !custom.isEmpty
-        {
-            return URL(fileURLWithPath: custom)
-        }
-
-        let home = env["HOME"] ?? NSHomeDirectory()
-        return URL(fileURLWithPath: home).appendingPathComponent(".look.config")
+        URL(fileURLWithPath: ConfigPathResolver.resolvedPath())
     }
 
     private static func ensureDefaultConfigFileExists(at path: URL) {

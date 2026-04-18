@@ -42,7 +42,6 @@ final class LauncherWindowCoordinator {
     func hideLauncherWindow(onHidden: () -> Void) {
         guard let window = launcherWindow() else { return }
         window.orderOut(nil)
-        NSApp.hide(nil)
         onHidden()
     }
 

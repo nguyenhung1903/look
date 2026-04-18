@@ -10,11 +10,17 @@ APP_ID := noah-code.Look
 APP_PROCESS := Look
 APP_BUNDLE := $(XCODE_DERIVED_DATA)/Build/Products/$(XCODE_CONFIG)/Look.app
 APP_DEBUG_DYLIB := $(APP_BUNDLE)/Contents/MacOS/Look.debug.dylib
+LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+
+DEV_APP_NAME ?= Look Dev
+DEV_APP_ID ?= noah-code.Look.Dev
+DEV_APP_INSTALL_BUNDLE := /Applications/$(DEV_APP_NAME).app
 
 REAL_DB_PATH := $(HOME)/Library/Application Support/look/look.db
 DEV_CONFIG_PATH ?= $(HOME)/.look.dev.config
+DEV_OPEN_ENV = env -u LOOK_DB_PATH LOOK_CONFIG_PATH="$(DEV_CONFIG_PATH)" LOOK_DEV_HINT=1
 
-.PHONY: help core-check ffi-check app-build app-stop app-run app-open symbols db-path db-status db-shell db-reset db-refresh
+.PHONY: help core-check ffi-check app-build app-ensure-bundle app-stop app-run app-open app-install-dev app-run-dev app-uninstall-dev symbols db-path db-status db-shell db-reset db-refresh
 
 help:
 	@printf "look developer tasks\n\n"
@@ -27,6 +33,9 @@ help:
 	@printf "  make app-stop     - stop running Look app process\n"
 	@printf "  make app-run      - stop running app, then open local app with dev config\n"
 	@printf "  make app-open     - open built app bundle\n"
+	@printf "  make app-install-dev - install side-by-side /Applications/$(DEV_APP_NAME).app\n"
+	@printf "  make app-run-dev  - install+open side-by-side dev app with dev config\n"
+	@printf "  make app-uninstall-dev - remove side-by-side dev app from /Applications\n"
 	@printf "  (override config) make app-run DEV_CONFIG_PATH=\"$$HOME/.look.dev.config\"\n\n"
 	@printf "database\n"
 	@printf "  make db-path      - print real db path\n"
@@ -44,19 +53,41 @@ ffi-check:
 app-build:
 	xcodebuild -project "$(XCODE_PROJECT)" -scheme "$(XCODE_SCHEME)" -configuration "$(XCODE_CONFIG)" -derivedDataPath "$(XCODE_DERIVED_DATA)" build
 
+app-ensure-bundle:
+	@if [ ! -d "$(APP_BUNDLE)" ]; then echo "missing app bundle: $(APP_BUNDLE)"; exit 1; fi
+
 app-stop:
 	@echo "Stopping any running Look app (including Homebrew install)"
 	@osascript -e 'tell application id "$(APP_ID)" to quit' >/dev/null 2>&1 || true
 	@pkill -x "$(APP_PROCESS)" >/dev/null 2>&1 || true
 
-app-run: app-build app-stop
-	@if [ ! -d "$(APP_BUNDLE)" ]; then echo "missing app bundle: $(APP_BUNDLE)"; exit 1; fi
+app-run: app-build app-stop app-ensure-bundle
 	@echo "Opening local app with config: $(DEV_CONFIG_PATH)"
-	@env -u LOOK_DB_PATH LOOK_CONFIG_PATH="$(DEV_CONFIG_PATH)" LOOK_DEV_HINT=1 open -n "$(APP_BUNDLE)"
+	@$(DEV_OPEN_ENV) open -n "$(APP_BUNDLE)"
 
-app-open: app-build
-	@if [ ! -d "$(APP_BUNDLE)" ]; then echo "missing app bundle: $(APP_BUNDLE)"; exit 1; fi
+app-open: app-build app-ensure-bundle
 	@open "$(APP_BUNDLE)"
+
+app-install-dev: app-build app-ensure-bundle
+	@echo "Installing side-by-side dev app: $(DEV_APP_INSTALL_BUNDLE)"
+	@osascript -e 'tell application id "$(DEV_APP_ID)" to quit' >/dev/null 2>&1 || true
+	@rm -rf "$(DEV_APP_INSTALL_BUNDLE)"
+	@cp -R "$(APP_BUNDLE)" "$(DEV_APP_INSTALL_BUNDLE)"
+	@plutil -replace CFBundleDisplayName -string "$(DEV_APP_NAME)" "$(DEV_APP_INSTALL_BUNDLE)/Contents/Info.plist"
+	@plutil -replace CFBundleName -string "$(DEV_APP_NAME)" "$(DEV_APP_INSTALL_BUNDLE)/Contents/Info.plist"
+	@plutil -replace CFBundleIdentifier -string "$(DEV_APP_ID)" "$(DEV_APP_INSTALL_BUNDLE)/Contents/Info.plist"
+	@codesign --force --sign - --deep "$(DEV_APP_INSTALL_BUNDLE)" >/dev/null
+	@"$(LSREGISTER)" -f "$(DEV_APP_INSTALL_BUNDLE)" >/dev/null
+	@echo "Installed $(DEV_APP_NAME) with bundle id $(DEV_APP_ID)"
+
+app-run-dev: app-install-dev app-stop
+	@echo "Opening side-by-side dev app with config: $(DEV_CONFIG_PATH)"
+	@$(DEV_OPEN_ENV) open -a "$(DEV_APP_INSTALL_BUNDLE)"
+
+app-uninstall-dev:
+	@echo "Removing side-by-side dev app: $(DEV_APP_INSTALL_BUNDLE)"
+	@osascript -e 'tell application id "$(DEV_APP_ID)" to quit' >/dev/null 2>&1 || true
+	@rm -rf "$(DEV_APP_INSTALL_BUNDLE)"
 
 symbols: app-build
 	@nm -gU "$(APP_DEBUG_DYLIB)" | rg "_look_search_json|_look_record_usage|_look_free_cstring"

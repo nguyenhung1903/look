@@ -14,10 +14,11 @@ let package = Package(
             name: "LauncherLogic",
             path: "look-app",
             sources: [
-                "Support/HintText.swift",
+                "Support/Launcher/HintText.swift",
                 "Support/AppConstants.swift",
-                "Support/LauncherSearchLogic.swift",
-                "Support/BridgeErrorMapping.swift",
+                "Support/Launcher/LauncherSearchLogic.swift",
+                "Support/Launcher/BridgeErrorMapping.swift",
+                "Support/SingleInstanceLock.swift",
                 "Models/LauncherResult.swift",
             ]
         ),
