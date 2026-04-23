@@ -85,6 +85,7 @@ Indexing config supports include roots plus exclude rules for both apps and file
 ## UI
 
 Current built-in themes (Settings > Appearance):
+
 - Catppuccin, Tokyo Night, Rose Pine, Gruvbox, Dracula, Kanagawa, Custom
 
 ![Look UI 1](assets/look-ui/1.png)
@@ -304,6 +305,10 @@ Out of scope for v1:
 MIT
 
 ## Community
+
+**Thanks to everyone who has contributed to Look.**
+See the full contributor graph:
+[Contributors](https://github.com/kunkka19xx/look/graphs/contributors)
 
 - Contribution flow:
   - branch from `dev` and open PRs into `dev`
